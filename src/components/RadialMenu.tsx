@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { X, RotateCcw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import ColorPicker from './ColorPicker';
 
 interface RadialMenuProps {
@@ -204,38 +204,72 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
 
               {activeSection === 'goo' && (
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Resolution: {settings.goo.resolution}%</label>
-                    <Slider
-                      value={[settings.goo.resolution]}
-                      min={5}
-                      max={100}
-                      step={1}
-                      onValueChange={(value) => handleUpdateSetting('goo', 'resolution', value[0])}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-muted-foreground">Enable Effects</label>
+                    <Switch
+                      checked={settings.goo.enabled}
+                      onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Blur: {settings.goo.blur}px</label>
-                    <Slider
-                      value={[settings.goo.blur]}
-                      min={0}
-                      max={20}
-                      step={1}
-                      onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
-                    />
-                  </div>
+                  {settings.goo.enabled && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Blur Amount: {settings.goo.blur}px</label>
+                        <Slider
+                          value={[settings.goo.blur]}
+                          min={0}
+                          max={50}
+                          step={0.5}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
+                        />
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}</label>
-                    <Slider
-                      value={[settings.goo.threshold]}
-                      min={0}
-                      max={255}
-                      step={1}
-                      onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
-                    />
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Blur Spread: {settings.goo.blurSpread}x</label>
+                        <Slider
+                          value={[settings.goo.blurSpread || 1]}
+                          min={0.1}
+                          max={5}
+                          step={0.1}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'blurSpread', value[0])}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Threshold Multiply: {settings.goo.thresholdMultiply}x</label>
+                        <Slider
+                          value={[settings.goo.thresholdMultiply || 1]}
+                          min={1}
+                          max={200}
+                          step={1}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'thresholdMultiply', value[0])}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Threshold Offset: {settings.goo.thresholdOffset}</label>
+                        <Slider
+                          value={[settings.goo.thresholdOffset || 0]}
+                          min={-50}
+                          max={50}
+                          step={1}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'thresholdOffset', value[0])}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Smoothness: {settings.goo.smoothness}</label>
+                        <Slider
+                          value={[settings.goo.smoothness || 0.1]}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'smoothness', value[0])}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import RadialMenu from './RadialMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
+import WebGLCanvas from './WebGLCanvas';
 
 interface CanvasProps {
   // Default values for our parameters
@@ -21,7 +22,8 @@ interface CanvasProps {
     goo: {
       blur: number;
       threshold: number;
-      resolution: number; // New parameter for resolution/decimation
+      resolution: number;
+      enabled: boolean;
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
@@ -39,6 +41,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  // Add WebGL support state
+  const [webglSupported, setWebglSupported] = useState(false);
+
+  // Check WebGL support
+  useEffect(() => {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl');
+    setWebglSupported(!!gl);
+  }, []);
 
   // Initialize canvases
   useEffect(() => {
@@ -274,17 +286,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     ctx.drawImage(tempCanvas, 0, 0);
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
-    // Double-click detection (300ms threshold)
     if (timeDiff < 300) {
-      // Handle double-click
       setShowMenu(prev => !prev);
       setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
-      // Handle single click for dragging
       setIsDragging(true);
       dragStartRef.current = {
         x: e.clientX - offset.x,
@@ -295,53 +304,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     lastClickTimeRef.current = currentTime;
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault(); // Prevent scrolling
-
-    const touch = e.touches[0];
-    const currentTime = new Date().getTime();
-    const timeDiff = currentTime - lastClickTimeRef.current;
-
-    // Double-tap detection (300ms threshold)
-    if (timeDiff < 300) {
-      // Handle double-tap
-      setShowMenu(prev => !prev);
-      setMenuPosition({ x: touch.clientX, y: touch.clientY });
-    } else {
-      // Handle single tap for dragging
-      setIsDragging(true);
-      dragStartRef.current = {
-        x: touch.clientX - offset.x,
-        y: touch.clientY - offset.y
-      };
-    }
-
-    lastClickTimeRef.current = currentTime;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
-    e.preventDefault(); // Prevent scrolling
-
-    const touch = e.touches[0];
-    setOffset({
-      x: touch.clientX - dragStartRef.current.x,
-      y: touch.clientY - dragStartRef.current.y
-    });
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault(); // Prevent any default behavior
-    setIsDragging(false);
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    e.preventDefault(); // Prevent default double click behavior
-    setShowMenu(prev => !prev);
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
 
     setOffset({
@@ -354,31 +317,98 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setIsDragging(false);
   };
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const currentTime = new Date().getTime();
+    const timeDiff = currentTime - lastClickTimeRef.current;
+
+    if (timeDiff < 300) {
+      setShowMenu(prev => !prev);
+      setMenuPosition({ x: touch.clientX, y: touch.clientY });
+    } else {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: touch.clientX - offset.x,
+        y: touch.clientY - offset.y
+      };
+    }
+
+    lastClickTimeRef.current = currentTime;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    setOffset({
+      x: touch.clientX - dragStartRef.current.x,
+      y: touch.clientY - dragStartRef.current.y
+    });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setShowMenu(prev => !prev);
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+  };
+
   const handleMenuClose = () => {
     setShowMenu(false);
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-background">
+    <div className="relative w-full h-full">
+      {/* Original Canvas */}
       <canvas
         ref={canvasRef}
-        className="canvas-container"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          opacity: webglSupported ? 0 : 1 // Hide if WebGL is supported
+        }}
+      />
+
+      {/* WebGL Canvas */}
+      {webglSupported && (
+        <WebGLCanvas
+          width={canvasRef.current?.width || 0}
+          height={canvasRef.current?.height || 0}
+          settings={settings}
+          offset={offset}
+        />
+      )}
+
+      {/* Interaction layer */}
+      <div
+        className="absolute inset-0"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onDoubleClick={handleDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onDoubleClick={handleDoubleClick}
       />
 
+      {/* Radial Menu */}
       {showMenu && (
         <RadialMenu
           position={menuPosition}
-          onClose={handleMenuClose}
           settings={settings}
           setSettings={setSettings}
+          onClose={() => setShowMenu(false)}
         />
       )}
     </div>
