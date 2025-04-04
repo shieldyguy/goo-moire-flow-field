@@ -28,6 +28,12 @@ export class WebGLImageFilterWrapper {
     return this;
   }
 
+  applyNegative() {
+    this.filter.reset();
+    this.filter.addFilter('negative');
+    return this;
+  }
+
   apply(input: HTMLCanvasElement) {
     return this.filter.apply(input);
   }

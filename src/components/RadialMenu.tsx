@@ -157,26 +157,39 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
                     'Goo Effect Settings'}
               </h3>
 
+              {activeSection === 'goo' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-muted-foreground">Enable Effects</label>
+                    <Switch
+                      checked={settings.goo.enabled}
+                      onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Layer settings */}
               {(activeSection === 'layer1' || activeSection === 'layer2') && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Dot Spacing: {settings[activeSection].spacing}px</label>
+                    <label className="text-sm text-muted-foreground">Spacing: {settings[activeSection].spacing}px</label>
                     <Slider
                       value={[settings[activeSection].spacing]}
                       min={10}
-                      max={80}
+                      max={100}
                       step={1}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'spacing', value[0])}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Dot Size: {settings[activeSection].size}px</label>
+                    <label className="text-sm text-muted-foreground">Size: {settings[activeSection].size}px</label>
                     <Slider
                       value={[settings[activeSection].size]}
                       min={1}
                       max={20}
-                      step={1}
+                      step={0.5}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'size', value[0])}
                     />
                   </div>
@@ -194,82 +207,13 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
 
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Color</label>
-                    <ColorPicker
-                      color={settings[activeSection].color}
-                      onChange={(color) => handleUpdateSetting(activeSection, 'color', color)}
+                    <input
+                      type="color"
+                      value={settings[activeSection].color}
+                      onChange={(e) => handleUpdateSetting(activeSection, 'color', e.target.value)}
+                      className="w-full h-8 rounded"
                     />
                   </div>
-                </div>
-              )}
-
-              {activeSection === 'goo' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm text-muted-foreground">Enable Effects</label>
-                    <Switch
-                      checked={settings.goo.enabled}
-                      onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
-                    />
-                  </div>
-
-                  {settings.goo.enabled && (
-                    <>
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Blur Amount: {settings.goo.blur}px</label>
-                        <Slider
-                          value={[settings.goo.blur]}
-                          min={0}
-                          max={50}
-                          step={0.5}
-                          onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Blur Spread: {settings.goo.blurSpread}x</label>
-                        <Slider
-                          value={[settings.goo.blurSpread || 1]}
-                          min={0.1}
-                          max={5}
-                          step={0.1}
-                          onValueChange={(value) => handleUpdateSetting('goo', 'blurSpread', value[0])}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Threshold Multiply: {settings.goo.thresholdMultiply}x</label>
-                        <Slider
-                          value={[settings.goo.thresholdMultiply || 1]}
-                          min={1}
-                          max={200}
-                          step={1}
-                          onValueChange={(value) => handleUpdateSetting('goo', 'thresholdMultiply', value[0])}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Threshold Offset: {settings.goo.thresholdOffset}</label>
-                        <Slider
-                          value={[settings.goo.thresholdOffset || 0]}
-                          min={-50}
-                          max={50}
-                          step={1}
-                          onValueChange={(value) => handleUpdateSetting('goo', 'thresholdOffset', value[0])}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Smoothness: {settings.goo.smoothness}</label>
-                        <Slider
-                          value={[settings.goo.smoothness || 0.1]}
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          onValueChange={(value) => handleUpdateSetting('goo', 'smoothness', value[0])}
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
               )}
             </div>
