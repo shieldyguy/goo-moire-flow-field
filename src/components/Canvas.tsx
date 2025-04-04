@@ -198,8 +198,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     ctx.rotate((rotation * Math.PI) / 180);
     
     // Calculate grid dimensions
-    const gridWidth = width * 1.5; // Make grid larger than canvas to account for rotation
-    const gridHeight = height * 1.5;
+    const gridWidth = width * 5; // Make grid larger than canvas to account for rotation
+    const gridHeight = height * 5;
     
     // Calculate starting positions - ensure we have enough dots to fill the canvas
     const startX = -gridWidth / 2 + (offsetX % spacing);
