@@ -43,8 +43,6 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-    
-    --threshold: 50%;
   }
 }
 
@@ -83,8 +81,4 @@
 
 .slider-container {
   @apply relative flex items-center;
-}
-
-.threshold {
-  filter: brightness(calc(100% + var(--threshold))) grayscale(100%) contrast(1000%);
 }

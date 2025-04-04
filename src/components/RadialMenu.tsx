@@ -86,7 +86,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
       },
       goo: {
         blur: 8,
-        threshold: 50, // Updated default value for CSS threshold
+        threshold: 128,
         resolution: 100 // Default is full resolution
       }
     });
@@ -258,11 +258,11 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
               </div>
               
               <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}%</label>
+                <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}</label>
                 <Slider 
                   value={[settings.goo.threshold]} 
                   min={0} 
-                  max={100} 
+                  max={255} 
                   step={1}
                   onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
                 />

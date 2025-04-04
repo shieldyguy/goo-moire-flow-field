@@ -19,7 +19,7 @@ const Index = () => {
     },
     goo: {
       blur: 8,
-      threshold: 50, // Changed to 50 as the default value for CSS threshold (percentage)
+      threshold: 128,
       resolution: 100 // Default is full resolution
     }
   });
