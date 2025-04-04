@@ -272,11 +272,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     
     // Double-click detection (300ms threshold)
     if (timeDiff < 300) {
-      // Handle double-click - store exact click position
-      const clickX = e.clientX;
-      const clickY = e.clientY;
-      setMenuPosition({ x: clickX, y: clickY });
-      setShowMenu(true);
+      // Handle double-click
+      setShowMenu(prev => !prev);
+      setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
       // Handle single click for dragging
       setIsDragging(true);
@@ -289,11 +287,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     lastClickTimeRef.current = currentTime;
   };
 
-  // Make sure double click handler sets the exact position
+  // Add a dedicated double click handler
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault(); // Prevent default double click behavior
+    setShowMenu(prev => !prev);
     setMenuPosition({ x: e.clientX, y: e.clientY });
-    setShowMenu(true);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
