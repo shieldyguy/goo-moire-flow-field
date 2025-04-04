@@ -184,17 +184,20 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }
 
     // Apply blur to the combined result
-    thresholdCtx.filter = `blur(${settings.goo.blur}px)`;
-    thresholdCtx.drawImage(combinedCanvas, 0, 0);
-    thresholdCtx.filter = 'none';
-    
-    // Update CSS threshold variable
-    document.documentElement.style.setProperty('--threshold', `${settings.goo.threshold}%`);
-    
-    // Draw the combined and blurred image to the main canvas
-    // The CSS filter for threshold will be applied via a class on the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(thresholdCanvas, 0, 0);
+thresholdCtx.clearRect(0, 0, thresholdCanvas.width, thresholdCanvas.height);
+thresholdCtx.filter = `blur(${settings.goo.blur}px)`;
+thresholdCtx.drawImage(combinedCanvas, 0, 0);
+thresholdCtx.filter = 'none';
+
+// Update CSS threshold variable
+document.documentElement.style.setProperty('--threshold', `${settings.goo.threshold}%`);
+
+// Ensure the threshold canvas is displayed and styled
+thresholdCanvas.classList.add('threshold');
+
+// Do NOT draw thresholdCanvas back to canvas!
+// canvas can stay blank or show something else if needed
+ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const drawDotGrid = (
