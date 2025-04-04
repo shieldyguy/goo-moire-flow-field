@@ -29,6 +29,7 @@ interface CanvasProps {
 const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const combinedCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -37,10 +38,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
 
-  // Initialize offscreen canvas
+  // Initialize canvases
   useEffect(() => {
     if (!offscreenCanvasRef.current) {
       offscreenCanvasRef.current = document.createElement('canvas');
+    }
+    if (!combinedCanvasRef.current) {
+      combinedCanvasRef.current = document.createElement('canvas');
     }
   }, []);
 
@@ -56,6 +60,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       if (offscreenCanvasRef.current) {
         offscreenCanvasRef.current.width = window.innerWidth;
         offscreenCanvasRef.current.height = window.innerHeight;
+      }
+      
+      if (combinedCanvasRef.current) {
+        combinedCanvasRef.current.width = window.innerWidth;
+        combinedCanvasRef.current.height = window.innerHeight;
       }
       
       drawPattern();
@@ -86,21 +95,24 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const drawPattern = () => {
     const canvas = canvasRef.current;
     const offscreenCanvas = offscreenCanvasRef.current;
-    if (!canvas || !offscreenCanvas) return;
+    const combinedCanvas = combinedCanvasRef.current;
+    if (!canvas || !offscreenCanvas || !combinedCanvas) return;
 
     const ctx = canvas.getContext('2d');
     const offCtx = offscreenCanvas.getContext('2d');
-    if (!ctx || !offCtx) return;
+    const combinedCtx = combinedCanvas.getContext('2d');
+    if (!ctx || !offCtx || !combinedCtx) return;
 
-    // Clear both canvases
+    // Clear all canvases
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    combinedCtx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
 
     // Common parameters
     const width = canvas.width;
     const height = canvas.height;
 
-    // Draw first layer (static background)
+    // Draw first layer (static background) on the offscreen canvas
     drawDotGrid(
       offCtx,
       width,
@@ -112,10 +124,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       0, 0 // No offset for base layer
     );
 
-    // Apply goo effect to first layer
-    applyGooEffect(offCtx, settings.goo.blur, settings.goo.threshold);
-
-    // Draw second layer (movable)
+    // Draw second layer (movable) on the main canvas
     drawDotGrid(
       ctx,
       width,
@@ -127,12 +136,17 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       offset.x, offset.y // Apply offset for top layer
     );
 
-    // Apply goo effect to second layer
-    applyGooEffect(ctx, settings.goo.blur, settings.goo.threshold);
+    // Combine both layers on the combinedCanvas
+    combinedCtx.drawImage(offscreenCanvas, 0, 0);
+    combinedCtx.globalCompositeOperation = 'source-over';
+    combinedCtx.drawImage(canvas, 0, 0);
 
-    // Draw the first layer on the main canvas
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(offscreenCanvas, 0, 0);
+    // Apply goo effect to the combined result
+    applyGooEffect(combinedCtx, settings.goo.blur, settings.goo.threshold);
+    
+    // Clear the main canvas and draw the combined result with goo effect
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(combinedCanvas, 0, 0);
   };
 
   const drawDotGrid = (
