@@ -1,12 +1,31 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import Canvas from '@/components/Canvas';
 
 const Index = () => {
+  // Default settings
+  const [settings, setSettings] = useState({
+    layer1: {
+      spacing: 30,
+      size: 8,
+      rotation: 0,
+      color: '#ff5555'
+    },
+    layer2: {
+      spacing: 30,
+      size: 8,
+      rotation: 45,
+      color: '#5555ff'
+    },
+    goo: {
+      blur: 8,
+      threshold: 128
+    }
+  });
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="h-screen w-screen overflow-hidden bg-background">
+      <Canvas settings={settings} setSettings={setSettings} />
     </div>
   );
 };
