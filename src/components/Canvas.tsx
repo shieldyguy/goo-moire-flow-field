@@ -56,7 +56,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      const canvasScaleFactor = 3;
+      const canvasScaleFactor = 0.5;
       canvas.width = window.innerWidth * canvasScaleFactor;
       canvas.height = window.innerHeight * canvasScaleFactor;
 
@@ -80,7 +80,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const timer = setTimeout(() => {
       toast({
         title: "Moire Pattern Explorer",
-        description: isMobile 
+        description: isMobile
           ? "Tap and drag to move patterns. Double-tap to open controls."
           : "Double-click anywhere to open the control panel.",
       });
