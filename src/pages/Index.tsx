@@ -19,7 +19,7 @@ const Index = () => {
     },
     goo: {
       blur: 8,
-      threshold: 128,
+      threshold: 300, // Starting contrast value for CSS filter approach
       resolution: 100 // Default is full resolution
     }
   });

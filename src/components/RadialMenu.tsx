@@ -47,7 +47,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
   const menuItems = [
     { id: 'layer1', label: 'Layer 1', icon: '1' },
     { id: 'layer2', label: 'Layer 2', icon: '2' },
-    { id: 'goo', label: 'Goo Effect', icon: 'G' },
+    { id: 'goo', label: 'Filter Effect', icon: 'F' },
   ];
   
   const itemPositions = menuItems.map((item, index) => {
@@ -90,6 +90,19 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
         resolution: 100 // Default is full resolution
       }
     });
+  };
+
+  // Calculate position for the settings panel
+  const getSettingsPanelPosition = () => {
+    // Default position (right side)
+    let positionClass = "left-full ml-4";
+    
+    // Check if menu is too close to the right edge
+    if (menuX + menuRadius + 300 > window.innerWidth) {
+      positionClass = "right-full mr-4"; // Put on the left side
+    }
+    
+    return positionClass;
   };
 
   return (
@@ -149,12 +162,12 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
         
         {/* Settings panel */}
         {activeSection && (
-          <div className="absolute top-1/2 left-0 w-full px-8 transform -translate-y-1/2">
-            <div className="bg-background/90 backdrop-blur rounded-lg p-4 animate-fade-in">
+          <div className={`absolute top-0 ${getSettingsPanelPosition()} w-64 h-full flex items-center`}>
+            <div className="bg-background/90 backdrop-blur rounded-lg p-4 animate-fade-in w-full">
               <h3 className="text-primary font-semibold mb-4 text-center">
                 {activeSection === 'layer1' ? 'Layer 1 Settings' : 
                  activeSection === 'layer2' ? 'Layer 2 Settings' : 
-                 'Goo Effect Settings'}
+                 'Filter Effect Settings'}
               </h3>
               
               {(activeSection === 'layer1' || activeSection === 'layer2') && (
@@ -227,12 +240,12 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
                   </div>
                   
                   <div className="space-y-1">
-                    <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}</label>
+                    <label className="text-sm text-muted-foreground">Contrast: {settings.goo.threshold}</label>
                     <Slider 
                       value={[settings.goo.threshold]} 
                       min={0} 
-                      max={255} 
-                      step={1}
+                      max={1000} 
+                      step={10}
                       onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
                     />
                   </div>
