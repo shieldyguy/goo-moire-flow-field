@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import RadialMenu from './RadialMenu';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CanvasProps {
   // Default values for our parameters
@@ -37,6 +38,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Initialize canvases
   useEffect(() => {
@@ -78,7 +80,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const timer = setTimeout(() => {
       toast({
         title: "Moire Pattern Explorer",
-        description: "Double-click anywhere to open the control panel.",
+        description: isMobile 
+          ? "Tap and drag to move patterns. Double-tap to open controls."
+          : "Double-click anywhere to open the control panel.",
       });
     }, 1000);
 
@@ -86,7 +90,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       window.removeEventListener('resize', resizeCanvas);
       clearTimeout(timer);
     };
-  }, [toast]);
+  }, [toast, isMobile]);
 
   // Redraw when settings change
   useEffect(() => {
@@ -201,7 +205,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // Apply rotation 
     ctx.rotate((rotation * Math.PI) / 180);
 
-
     // Calculate grid dimensions
     const gridWidth = width * 5; // Make grid larger than canvas to account for rotation
     const gridHeight = height * 5;
@@ -292,7 +295,46 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     lastClickTimeRef.current = currentTime;
   };
 
-  // Add a dedicated double click handler
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Prevent scrolling
+
+    const touch = e.touches[0];
+    const currentTime = new Date().getTime();
+    const timeDiff = currentTime - lastClickTimeRef.current;
+
+    // Double-tap detection (300ms threshold)
+    if (timeDiff < 300) {
+      // Handle double-tap
+      setShowMenu(prev => !prev);
+      setMenuPosition({ x: touch.clientX, y: touch.clientY });
+    } else {
+      // Handle single tap for dragging
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: touch.clientX - offset.x,
+        y: touch.clientY - offset.y
+      };
+    }
+
+    lastClickTimeRef.current = currentTime;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDragging) return;
+    e.preventDefault(); // Prevent scrolling
+
+    const touch = e.touches[0];
+    setOffset({
+      x: touch.clientX - dragStartRef.current.x,
+      y: touch.clientY - dragStartRef.current.y
+    });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Prevent any default behavior
+    setIsDragging(false);
+  };
+
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault(); // Prevent default double click behavior
     setShowMenu(prev => !prev);
@@ -326,6 +368,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onDoubleClick={handleDoubleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
 
       {showMenu && (
