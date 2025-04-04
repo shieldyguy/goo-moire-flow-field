@@ -25,7 +25,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
   const menuSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
   const menuRadius = menuSize / 2;
   
-  // Ensure menu stays within screen bounds
+  // Ensure menu stays within screen bounds - use the position directly from props
   const menuX = Math.min(Math.max(position.x, menuRadius), window.innerWidth - menuRadius);
   const menuY = Math.min(Math.max(position.y, menuRadius), window.innerHeight - menuRadius);
   
@@ -92,16 +92,15 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
     });
   };
 
-  // Calculate settings panel position
+  // Calculate settings panel position - place it beside the menu, not on top
   const getPanelPosition = () => {
     // Position the panel to the right of the menu by default
     let left = menuX + menuRadius + 20; // 20px padding
     let top = menuY - 150; // Center vertically
 
     // Check if panel would go off the right edge of the screen
-    // If it would, position it to the left instead
     if (left + 300 > window.innerWidth) { // Assuming panel width is ~300px
-      left = menuX - menuRadius - 320; // Position to the left with padding
+      left = menuX - menuRadius - 320; // Position to the left instead
     }
 
     // Make sure panel doesn't go off the top or bottom
