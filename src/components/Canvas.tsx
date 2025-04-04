@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import RadialMenu from './RadialMenu';
@@ -194,6 +195,20 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // Translate to the center of the canvas
     ctx.translate(width / 2, height / 2);
     
+    // Apply offset before rotation to ensure consistent drag direction
+    if (offsetX !== 0 || offsetY !== 0) {
+      // Calculate the offset in the rotated coordinate system
+      const radians = (rotation * Math.PI) / 180;
+      const cosTheta = Math.cos(radians);
+      const sinTheta = Math.sin(radians);
+      
+      // Apply the offset in a way that's consistent with screen coordinates
+      ctx.translate(
+        offsetX * cosTheta + offsetY * sinTheta,
+        -offsetX * sinTheta + offsetY * cosTheta
+      );
+    }
+    
     // Apply rotation
     ctx.rotate((rotation * Math.PI) / 180);
     
@@ -202,8 +217,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const gridHeight = height * 5;
     
     // Calculate starting positions - ensure we have enough dots to fill the canvas
-    const startX = -gridWidth / 2 + (offsetX % spacing);
-    const startY = -gridHeight / 2 + (offsetY % spacing);
+    const startX = -gridWidth / 2;
+    const startY = -gridHeight / 2;
     
     // Draw the grid of dots
     ctx.fillStyle = color;
