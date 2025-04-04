@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import RadialMenu from './RadialMenu';
@@ -21,6 +20,7 @@ interface CanvasProps {
     goo: {
       blur: number;
       threshold: number;
+      resolution: number; // New parameter for resolution/decimation
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
@@ -140,6 +140,34 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     combinedCtx.drawImage(offscreenCanvas, 0, 0);
     combinedCtx.globalCompositeOperation = 'source-over';
     combinedCtx.drawImage(canvas, 0, 0);
+
+    // Apply resolution reduction (decimation) before goo effect
+    if (settings.goo.resolution < 100) {
+      const resizeFactor = settings.goo.resolution / 100;
+      
+      // Create a temporary small canvas for the reduced resolution
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+      
+      // Set the temporary canvas to the reduced size
+      tempCanvas.width = Math.max(1, Math.floor(width * resizeFactor));
+      tempCanvas.height = Math.max(1, Math.floor(height * resizeFactor));
+      
+      // Draw the combined result at reduced resolution
+      tempCtx.drawImage(combinedCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Clear the combined canvas
+      combinedCtx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
+      
+      // Scale the reduced resolution image back up
+      combinedCtx.imageSmoothingEnabled = false; // Disable smoothing for pixelated effect
+      combinedCtx.drawImage(
+        tempCanvas, 
+        0, 0, tempCanvas.width, tempCanvas.height,
+        0, 0, combinedCanvas.width, combinedCanvas.height
+      );
+    }
 
     // Apply goo effect to the combined result
     applyGooEffect(combinedCtx, settings.goo.blur, settings.goo.threshold);

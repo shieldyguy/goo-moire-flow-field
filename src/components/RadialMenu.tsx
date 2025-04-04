@@ -86,7 +86,8 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
       },
       goo: {
         blur: 8,
-        threshold: 128
+        threshold: 128,
+        resolution: 100 // Default is full resolution
       }
     });
   };
@@ -203,6 +204,17 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
               
               {activeSection === 'goo' && (
                 <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-sm text-muted-foreground">Resolution: {settings.goo.resolution}%</label>
+                    <Slider 
+                      value={[settings.goo.resolution]} 
+                      min={5} 
+                      max={100} 
+                      step={5}
+                      onValueChange={(value) => handleUpdateSetting('goo', 'resolution', value[0])}
+                    />
+                  </div>
+                  
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Blur: {settings.goo.blur}px</label>
                     <Slider 

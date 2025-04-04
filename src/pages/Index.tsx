@@ -19,7 +19,8 @@ const Index = () => {
     },
     goo: {
       blur: 8,
-      threshold: 128
+      threshold: 128,
+      resolution: 100 // Default is full resolution
     }
   });
 
