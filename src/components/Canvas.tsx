@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import RadialMenu from './RadialMenu';
@@ -195,22 +194,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // Translate to the center of the canvas
     ctx.translate(width / 2, height / 2);
     
-    // Apply offset before rotation to ensure consistent drag direction
-    if (offsetX !== 0 || offsetY !== 0) {
-      // Calculate the offset in the rotated coordinate system
-      const radians = (rotation * Math.PI) / 180;
-      const cosTheta = Math.cos(radians);
-      const sinTheta = Math.sin(radians);
-      
-      // Apply the offset in a way that's consistent with screen coordinates
-      ctx.translate(
-        offsetX * cosTheta + offsetY * sinTheta,
-        -offsetX * sinTheta + offsetY * cosTheta
-      );
-    }
-    
-    // Apply rotation
+    // Apply rotation first
     ctx.rotate((rotation * Math.PI) / 180);
+    
+    // Then apply the offset in the already rotated space
+    // This ensures the offset matches the screen direction regardless of rotation
+    ctx.translate(offsetX, offsetY);
     
     // Calculate grid dimensions
     const gridWidth = width * 5; // Make grid larger than canvas to account for rotation
