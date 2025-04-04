@@ -56,17 +56,17 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      
+
       if (offscreenCanvasRef.current) {
         offscreenCanvasRef.current.width = window.innerWidth;
         offscreenCanvasRef.current.height = window.innerHeight;
       }
-      
+
       if (combinedCanvasRef.current) {
         combinedCanvasRef.current.width = window.innerWidth;
         combinedCanvasRef.current.height = window.innerHeight;
       }
-      
+
       drawPattern();
     };
 
@@ -144,26 +144,26 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // Apply resolution reduction (decimation) before goo effect
     if (settings.goo.resolution < 100) {
       const resizeFactor = settings.goo.resolution / 100;
-      
+
       // Create a temporary small canvas for the reduced resolution
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       if (!tempCtx) return;
-      
+
       // Set the temporary canvas to the reduced size
       tempCanvas.width = Math.max(1, Math.floor(width * resizeFactor));
       tempCanvas.height = Math.max(1, Math.floor(height * resizeFactor));
-      
+
       // Draw the combined result at reduced resolution
       tempCtx.drawImage(combinedCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
-      
+
       // Clear the combined canvas
       combinedCtx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
-      
+
       // Scale the reduced resolution image back up
       combinedCtx.imageSmoothingEnabled = false; // Disable smoothing for pixelated effect
       combinedCtx.drawImage(
-        tempCanvas, 
+        tempCanvas,
         0, 0, tempCanvas.width, tempCanvas.height,
         0, 0, combinedCanvas.width, combinedCanvas.height
       );
@@ -171,7 +171,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
     // Apply goo effect to the combined result
     applyGooEffect(combinedCtx, settings.goo.blur, settings.goo.threshold);
-    
+
     // Clear the main canvas and draw the combined result with goo effect
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(combinedCanvas, 0, 0);
@@ -190,28 +190,28 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   ) => {
     // Save the current state
     ctx.save();
-    
+
     // Translate to the center of the canvas
     ctx.translate(width / 2, height / 2);
-    
-    // Apply rotation first
-    ctx.rotate((rotation * Math.PI) / 180);
-    
-    // Then apply the offset in the already rotated space
-    // This ensures the offset matches the screen direction regardless of rotation
+
+    // Apply translation
     ctx.translate(offsetX, offsetY);
-    
+
+    // Apply rotation 
+    ctx.rotate((rotation * Math.PI) / 180);
+
+
     // Calculate grid dimensions
     const gridWidth = width * 5; // Make grid larger than canvas to account for rotation
     const gridHeight = height * 5;
-    
+
     // Calculate starting positions - ensure we have enough dots to fill the canvas
     const startX = -gridWidth / 2;
     const startY = -gridHeight / 2;
-    
+
     // Draw the grid of dots
     ctx.fillStyle = color;
-    
+
     for (let x = startX; x < gridWidth / 2; x += spacing) {
       for (let y = startY; y < gridHeight / 2; y += spacing) {
         ctx.beginPath();
@@ -219,7 +219,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         ctx.fill();
       }
     }
-    
+
     // Restore the original state
     ctx.restore();
   };
@@ -231,41 +231,41 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   ) => {
     // Apply blur
     ctx.filter = `blur(${blur}px)`;
-    
+
     // Create a temporary canvas to hold the blurred result
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = ctx.canvas.width;
     tempCanvas.height = ctx.canvas.height;
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
-    
+
     // Draw the current canvas to the temp canvas (this applies the blur)
     tempCtx.filter = `blur(${blur}px)`;
     tempCtx.drawImage(ctx.canvas, 0, 0);
-    
+
     // Clear the original canvas
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.filter = 'none';
-    
+
     // Apply threshold to the blurred image and draw back to original
     tempCtx.filter = 'none';
     const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const data = imageData.data;
-    
+
     for (let i = 0; i < data.length; i += 4) {
       // Calculate grayscale value
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
       const v = 0.3 * r + 0.59 * g + 0.11 * b;
-      
+
       // Apply threshold
       const a = v > threshold ? 255 : 0;
-      
+
       // Keep original color but adjust alpha
       data[i + 3] = a;
     }
-    
+
     tempCtx.putImageData(imageData, 0, 0);
     ctx.drawImage(tempCanvas, 0, 0);
   };
@@ -273,7 +273,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
-    
+
     // Double-click detection (300ms threshold)
     if (timeDiff < 300) {
       // Handle double-click
@@ -282,12 +282,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     } else {
       // Handle single click for dragging
       setIsDragging(true);
-      dragStartRef.current = { 
-        x: e.clientX - offset.x, 
-        y: e.clientY - offset.y 
+      dragStartRef.current = {
+        x: e.clientX - offset.x,
+        y: e.clientY - offset.y
       };
     }
-    
+
     lastClickTimeRef.current = currentTime;
   };
 
@@ -300,7 +300,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging) return;
-    
+
     setOffset({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y
@@ -317,7 +317,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-background">
-      <canvas 
+      <canvas
         ref={canvasRef}
         className="canvas-container"
         onMouseDown={handleMouseDown}
@@ -326,9 +326,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         onMouseLeave={handleMouseUp}
         onDoubleClick={handleDoubleClick}
       />
-      
+
       {showMenu && (
-        <RadialMenu 
+        <RadialMenu
           position={menuPosition}
           onClose={handleMenuClose}
           settings={settings}
