@@ -54,17 +54,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const canvasScaleFactor = 3;
+      canvas.width = window.innerWidth * canvasScaleFactor;
+      canvas.height = window.innerHeight * canvasScaleFactor;
 
       if (offscreenCanvasRef.current) {
-        offscreenCanvasRef.current.width = window.innerWidth;
-        offscreenCanvasRef.current.height = window.innerHeight;
+        offscreenCanvasRef.current.width = window.innerWidth * canvasScaleFactor;
+        offscreenCanvasRef.current.height = window.innerHeight * canvasScaleFactor;
       }
 
       if (combinedCanvasRef.current) {
-        combinedCanvasRef.current.width = window.innerWidth;
-        combinedCanvasRef.current.height = window.innerHeight;
+        combinedCanvasRef.current.width = window.innerWidth * canvasScaleFactor;
+        combinedCanvasRef.current.height = window.innerHeight * canvasScaleFactor;
       }
 
       drawPattern();
