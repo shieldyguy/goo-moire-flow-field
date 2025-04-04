@@ -30,7 +30,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const combinedCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const filterCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -46,9 +45,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }
     if (!combinedCanvasRef.current) {
       combinedCanvasRef.current = document.createElement('canvas');
-    }
-    if (!filterCanvasRef.current) {
-      filterCanvasRef.current = document.createElement('canvas');
     }
   }, []);
 
@@ -69,11 +65,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       if (combinedCanvasRef.current) {
         combinedCanvasRef.current.width = window.innerWidth;
         combinedCanvasRef.current.height = window.innerHeight;
-      }
-      
-      if (filterCanvasRef.current) {
-        filterCanvasRef.current.width = window.innerWidth;
-        filterCanvasRef.current.height = window.innerHeight;
       }
       
       drawPattern();
@@ -105,20 +96,17 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const canvas = canvasRef.current;
     const offscreenCanvas = offscreenCanvasRef.current;
     const combinedCanvas = combinedCanvasRef.current;
-    const filterCanvas = filterCanvasRef.current;
-    if (!canvas || !offscreenCanvas || !combinedCanvas || !filterCanvas) return;
+    if (!canvas || !offscreenCanvas || !combinedCanvas) return;
 
     const ctx = canvas.getContext('2d');
     const offCtx = offscreenCanvas.getContext('2d');
     const combinedCtx = combinedCanvas.getContext('2d');
-    const filterCtx = filterCanvas.getContext('2d');
-    if (!ctx || !offCtx || !combinedCtx || !filterCtx) return;
+    if (!ctx || !offCtx || !combinedCtx) return;
 
     // Clear all canvases
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
     combinedCtx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
-    filterCtx.clearRect(0, 0, filterCanvas.width, filterCanvas.height);
 
     // Common parameters
     const width = canvas.width;
@@ -181,15 +169,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       );
     }
 
-    // Set up the CSS filter string based on the goo settings
-    // Apply CSS filter-based thresholding/posterization to combined canvas
-    filterCtx.filter = `blur(${settings.goo.blur}px) contrast(${100 + settings.goo.threshold}%)`;
-    filterCtx.drawImage(combinedCanvas, 0, 0);
+    // Apply goo effect to the combined result
+    applyGooEffect(combinedCtx, settings.goo.blur, settings.goo.threshold);
     
-    // Clear the main canvas and draw the filtered result
+    // Clear the main canvas and draw the combined result with goo effect
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.filter = 'none';
-    ctx.drawImage(filterCanvas, 0, 0);
+    ctx.drawImage(combinedCanvas, 0, 0);
   };
 
   const drawDotGrid = (
@@ -235,15 +220,63 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     ctx.restore();
   };
 
+  const applyGooEffect = (
+    ctx: CanvasRenderingContext2D,
+    blur: number,
+    threshold: number
+  ) => {
+    // Apply blur
+    ctx.filter = `blur(${blur}px)`;
+    
+    // Create a temporary canvas to hold the blurred result
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = ctx.canvas.width;
+    tempCanvas.height = ctx.canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+    
+    // Draw the current canvas to the temp canvas (this applies the blur)
+    tempCtx.filter = `blur(${blur}px)`;
+    tempCtx.drawImage(ctx.canvas, 0, 0);
+    
+    // Clear the original canvas
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.filter = 'none';
+    
+    // Apply threshold to the blurred image and draw back to original
+    tempCtx.filter = 'none';
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const data = imageData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+      // Calculate grayscale value
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const v = 0.3 * r + 0.59 * g + 0.11 * b;
+      
+      // Apply threshold
+      const a = v > threshold ? 255 : 0;
+      
+      // Keep original color but adjust alpha
+      data[i + 3] = a;
+    }
+    
+    tempCtx.putImageData(imageData, 0, 0);
+    ctx.drawImage(tempCanvas, 0, 0);
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
     
     // Double-click detection (300ms threshold)
     if (timeDiff < 300) {
-      // Handle double-click
-      setShowMenu(prev => !prev);
-      setMenuPosition({ x: e.clientX, y: e.clientY });
+      // Handle double-click - store exact click position
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+      setMenuPosition({ x: clickX, y: clickY });
+      setShowMenu(true);
     } else {
       // Handle single click for dragging
       setIsDragging(true);
@@ -256,10 +289,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     lastClickTimeRef.current = currentTime;
   };
 
+  // Make sure double click handler sets the exact position
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault(); // Prevent default double click behavior
-    setShowMenu(prev => !prev);
     setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowMenu(true);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
