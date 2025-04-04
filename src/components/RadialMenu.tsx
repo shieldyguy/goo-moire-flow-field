@@ -20,15 +20,15 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  
+
   // Calculate menu size and position based on screen size
   const menuSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
   const menuRadius = menuSize / 2;
-  
+
   // Ensure menu stays within screen bounds
   const menuX = Math.min(Math.max(position.x, menuRadius), window.innerWidth - menuRadius);
   const menuY = Math.min(Math.max(position.y, menuRadius), window.innerHeight - menuRadius);
-  
+
   useEffect(() => {
     // Handle clicks outside the menu to close it
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,7 +36,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
         onClose();
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -49,7 +49,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
     { id: 'layer2', label: 'Layer 2', icon: '2' },
     { id: 'goo', label: 'Goo Effect', icon: 'G' },
   ];
-  
+
   const itemPositions = menuItems.map((item, index) => {
     const angle = (index * 2 * Math.PI) / menuItems.length;
     const radius = menuRadius * 0.6; // Position items at 60% of menu radius
@@ -59,7 +59,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
       y: Math.sin(angle) * radius
     };
   });
-  
+
   const handleUpdateSetting = (section: string, property: string, value: any) => {
     setSettings((prev: any) => ({
       ...prev,
@@ -69,7 +69,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
       }
     }));
   };
-  
+
   const resetSettings = () => {
     setSettings({
       layer1: {
@@ -93,7 +93,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={menuRef}
       className="fixed z-50 animate-scale-in"
       style={{
@@ -109,27 +109,27 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
         <div className="absolute top-6 text-center w-full text-primary font-semibold">
           Moire Control Panel
         </div>
-        
+
         {/* Close button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="absolute top-2 right-2 rounded-full"
           onClick={onClose}
         >
           <X className="h-4 w-4" />
         </Button>
-        
+
         {/* Reset button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="absolute top-2 left-2 rounded-full"
           onClick={resetSettings}
         >
           <RotateCcw className="h-4 w-4" />
         </Button>
-        
+
         {/* Menu items */}
         {itemPositions.map((item) => (
           <div
@@ -146,92 +146,92 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
             </div>
           </div>
         ))}
-        
+
         {/* Settings panel */}
         {activeSection && (
           <div className="absolute top-1/2 left-0 w-full px-8 transform -translate-y-1/2">
             <div className="bg-background/90 backdrop-blur rounded-lg p-4 animate-fade-in">
               <h3 className="text-primary font-semibold mb-4 text-center">
-                {activeSection === 'layer1' ? 'Layer 1 Settings' : 
-                 activeSection === 'layer2' ? 'Layer 2 Settings' : 
-                 'Goo Effect Settings'}
+                {activeSection === 'layer1' ? 'Layer 1 Settings' :
+                  activeSection === 'layer2' ? 'Layer 2 Settings' :
+                    'Goo Effect Settings'}
               </h3>
-              
+
               {(activeSection === 'layer1' || activeSection === 'layer2') && (
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Dot Spacing: {settings[activeSection].spacing}px</label>
-                    <Slider 
-                      value={[settings[activeSection].spacing]} 
-                      min={10} 
-                      max={80} 
+                    <Slider
+                      value={[settings[activeSection].spacing]}
+                      min={10}
+                      max={80}
                       step={1}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'spacing', value[0])}
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Dot Size: {settings[activeSection].size}px</label>
-                    <Slider 
-                      value={[settings[activeSection].size]} 
-                      min={1} 
-                      max={20} 
+                    <Slider
+                      value={[settings[activeSection].size]}
+                      min={1}
+                      max={20}
                       step={1}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'size', value[0])}
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Rotation: {settings[activeSection].rotation}°</label>
-                    <Slider 
-                      value={[settings[activeSection].rotation]} 
-                      min={0} 
-                      max={360} 
-                      step={5}
+                    <Slider
+                      value={[settings[activeSection].rotation]}
+                      min={0}
+                      max={360}
+                      step={1}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'rotation', value[0])}
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Color</label>
-                    <ColorPicker 
+                    <ColorPicker
                       color={settings[activeSection].color}
                       onChange={(color) => handleUpdateSetting(activeSection, 'color', color)}
                     />
                   </div>
                 </div>
               )}
-              
+
               {activeSection === 'goo' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Resolution: {settings.goo.resolution}%</label>
-                    <Slider 
-                      value={[settings.goo.resolution]} 
-                      min={5} 
-                      max={100} 
-                      step={5}
+                    <Slider
+                      value={[settings.goo.resolution]}
+                      min={5}
+                      max={100}
+                      step={1}
                       onValueChange={(value) => handleUpdateSetting('goo', 'resolution', value[0])}
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Blur: {settings.goo.blur}px</label>
-                    <Slider 
-                      value={[settings.goo.blur]} 
-                      min={0} 
-                      max={20} 
+                    <Slider
+                      value={[settings.goo.blur]}
+                      min={0}
+                      max={20}
                       step={1}
                       onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
                     />
                   </div>
-                  
+
                   <div className="space-y-1">
                     <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}</label>
-                    <Slider 
-                      value={[settings.goo.threshold]} 
-                      min={0} 
-                      max={255} 
+                    <Slider
+                      value={[settings.goo.threshold]}
+                      min={0}
+                      max={255}
                       step={1}
                       onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
                     />
