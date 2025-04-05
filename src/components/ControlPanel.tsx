@@ -190,19 +190,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         spacing: 30,
         size: 8,
         rotation: 0,
-        color: randomColor1
+        color: randomColor1,
+        type: 'dots'
       },
       layer2: {
         spacing: 30,
         size: 8,
         rotation: 45,
-        color: randomColor2
+        color: randomColor2,
+        type: 'dots'
       },
       goo: {
         enabled: false,
         blur: 8,
         threshold: 128,
-        resolution: 100
+        prePixelate: 1,
+        postPixelate: 1
       }
     });
 

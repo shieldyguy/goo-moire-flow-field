@@ -34,18 +34,12 @@ interface GooSettings {
   postPixelate: number;
 }
 
-interface TouchSettings {
-  enablePinchZoom: boolean;
-  enablePinchRotate: boolean;
-}
-
 interface PresetData {
   version?: number; // Optional version field for backward compatibility
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
     goo: GooSettings;
-    touch?: TouchSettings; // Make touch settings optional
   };
 }
 
@@ -71,10 +65,6 @@ const DEFAULT_SETTINGS: PresetData['settings'] = {
     threshold: 128,
     prePixelate: 1,
     postPixelate: 1
-  },
-  touch: {
-    enablePinchZoom: true,
-    enablePinchRotate: true
   }
 };
 
@@ -101,8 +91,7 @@ const mergeWithDefaults = (settings: Partial<PresetData['settings']>): PresetDat
   return {
     layer1: { ...DEFAULT_SETTINGS.layer1, ...settings.layer1 },
     layer2: { ...DEFAULT_SETTINGS.layer2, ...settings.layer2 },
-    goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo },
-    touch: { ...DEFAULT_SETTINGS.touch, ...settings.touch }
+    goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo }
   };
 };
 
