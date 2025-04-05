@@ -39,6 +39,12 @@ const Index = () => {
       threshold: 128,
       prePixelate: 1,
       postPixelate: 1
+    },
+    touch: {
+      enablePinchRotate: true,
+      enablePinchZoom: true,
+      rotationSensitivity: 50,
+      zoomSensitivity: 50
     }
   });
 

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import ControlPanel from './ControlPanel';
-import WebGLCanvas from './WebGLCanvas';
+import GestureCanvas from './GestureCanvas';
 import { encodePreset } from '@/lib/encoding/presetEncoder';
 
 interface CanvasProps {
@@ -25,6 +25,12 @@ interface CanvasProps {
       enabled: boolean;
       prePixelate: number;
       postPixelate: number;
+    };
+    touch: {
+      enablePinchRotate: boolean;
+      enablePinchZoom: boolean;
+      rotationSensitivity: number;
+      zoomSensitivity: number;
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
@@ -381,31 +387,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   return (
     <div ref={containerRef} className="relative w-full h-full canvas-container">
-      {/* Original Canvas */}
-      <canvas
-        ref={canvasRef}
+      <GestureCanvas
         width={dimensions.width}
         height={dimensions.height}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: webglSupported ? 0 : 1 // Hide if WebGL is supported
-        }}
+        settings={settings}
+        setSettings={setSettings}
+        offset={offset}
       />
-
-      {/* WebGL Canvas */}
-      {webglSupported && (
-        <WebGLCanvas
-          width={dimensions.width}
-          height={dimensions.height}
-          settings={settings}
-          offset={offset}
-        />
-      )}
 
       {/* Interaction layer */}
       <div
@@ -424,9 +412,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       {showMenu && (
         <ControlPanel
           position={menuPosition}
+          onClose={() => setShowMenu(false)}
           settings={settings}
           setSettings={setSettings}
-          onClose={() => setShowMenu(false)}
         />
       )}
     </div>
