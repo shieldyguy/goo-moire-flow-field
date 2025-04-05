@@ -67,6 +67,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [webglSupported, setWebglSupported] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [scale, setScale] = useState(1);
+  const [initialLayerRotation, setInitialLayerRotation] = useState(0);
+  const [isRotating, setIsRotating] = useState(false);
 
   // Check WebGL support
   useEffect(() => {
@@ -417,20 +419,37 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }));
   };
 
-  const handleRotate = (newRotation: number) => {
+  const handleRotateStart = () => {
     if (!settings.touch?.enablePinchRotate) return;
     
-    // Update rotation (in degrees)
-    setRotation(prev => prev + newRotation);
+    // Store current rotation as starting point
+    setInitialLayerRotation(settings.layer2.rotation);
+    setIsRotating(true);
+  };
+
+  const handleRotate = (rotationDegrees: number) => {
+    if (!settings.touch?.enablePinchRotate || !isRotating) return;
     
-    // Update layer rotation
+    // Note: Hammer.js already provides rotation in degrees, not radians
+    // We just need to calculate the new rotation based on initial rotation
+    const newRotation = (initialLayerRotation + rotationDegrees) % 360;
+    
+    // Ensure rotation is always positive
+    const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
+    
+    // Only update layer2 (the top layer)
     setSettings(prev => ({
       ...prev,
       layer2: {
         ...prev.layer2,
-        rotation: settings.layer2.rotation + newRotation
+        rotation: normalizedRotation
       }
     }));
+  };
+
+  const handleRotateEnd = () => {
+    if (!settings.touch?.enablePinchRotate) return;
+    setIsRotating(false);
   };
 
   const handleDoubleTap = (x: number, y: number) => {
@@ -443,6 +462,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       onPan={handlePan}
       onPinch={handlePinch}
       onRotate={handleRotate}
+      onRotateStart={handleRotateStart}
+      onRotateEnd={handleRotateEnd}
       onDoubleTap={handleDoubleTap}
     >
       <div ref={containerRef} className="relative w-full h-full canvas-container">
@@ -493,6 +514,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
             setSettings={setSettings}
             onClose={() => setShowMenu(false)}
           />
+        )}
+
+        {/* Optional visual feedback for rotation */}
+        {isRotating && (
+          <div className="fixed top-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+            Rotating
+          </div>
         )}
       </div>
     </GestureHandler>
