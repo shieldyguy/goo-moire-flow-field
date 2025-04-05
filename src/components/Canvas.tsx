@@ -116,19 +116,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Initial welcome toast after a small delay
-    const timer = setTimeout(() => {
-      toast({
-        title: "Moire Pattern Explorer",
-        description: "Double-click anywhere to open the control panel.",
-      });
-    }, 1000);
-
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      clearTimeout(timer);
     };
-  }, [toast]);
+  });
 
   // Redraw when settings change
   useEffect(() => {
