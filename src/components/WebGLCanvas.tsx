@@ -78,8 +78,9 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
           ctx.strokeStyle = color;
           ctx.lineWidth = size;
           ctx.beginPath();
-          ctx.moveTo(x - spacing/2, y);
-          ctx.lineTo(x + spacing/2, y);
+          ctx.moveTo(x - spacing / 2 - 1, y + 0.5);
+          ctx.lineTo(x + spacing / 2 + 1, y + 0.5);
+          
           ctx.stroke();
         }
       }
