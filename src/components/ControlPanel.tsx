@@ -78,46 +78,47 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const viewportHeight = window.innerHeight;
     
     // Panel dimensions (approximate)
-    const panelWidth = 400;
+    const panelWidth = viewportWidth < 768 ? viewportWidth - 32 : 400; // Full width - margins on mobile
     const panelHeight = 500;
     
-    // Starting point based on click position
-    let left;
-    let top;
-
-    // On mobile, always center horizontally and position near top
+    // On mobile, center horizontally and position near top
     if (viewportWidth < 768) {
-      left = Math.max(10, (viewportWidth - panelWidth) / 2);
-      top = 20; // Always position near the top on mobile
-    } else {
-      // On desktop, position near click but ensure it stays within viewport
-      
-      // Horizontal positioning - prefer positioning near the click if possible
-      if (position.x + panelWidth > viewportWidth - 20) {
-        // Too close to right edge, move it left
-        left = Math.max(10, viewportWidth - panelWidth - 20);
-      } else if (position.x - 20 < 0) {
-        // Too close to left edge, move it right
-        left = 20;
-      } else {
-        // Position it near the click
-        left = position.x - 20;
-      }
-      
-      // Vertical positioning
-      if (position.y + panelHeight > viewportHeight - 20) {
-        // Too close to bottom edge, move it up
-        top = Math.max(10, viewportHeight - panelHeight - 20);
-      } else if (position.y - 20 < 0) {
-        // Too close to top edge, move it down
-        top = 20;
-      } else {
-        // Position it near the click
-        top = position.y - 20;
-      }
+      return {
+        left: 16, // 16px margin on each side
+        top: 16,  // Position near top with 16px margin
+        width: panelWidth
+      };
     }
     
-    return { left, top };
+    // Desktop positioning logic
+    let left;
+    let top;
+    
+    // Horizontal positioning - prefer positioning near the click if possible
+    if (position.x + panelWidth > viewportWidth - 20) {
+      // Too close to right edge, move it left
+      left = Math.max(10, viewportWidth - panelWidth - 20);
+    } else if (position.x - 20 < 0) {
+      // Too close to left edge, move it right
+      left = 20;
+    } else {
+      // Position it near the click
+      left = position.x - 20;
+    }
+    
+    // Vertical positioning
+    if (position.y + panelHeight > viewportHeight - 20) {
+      // Too close to bottom edge, move it up
+      top = Math.max(10, viewportHeight - panelHeight - 20);
+    } else if (position.y - 20 < 0) {
+      // Too close to top edge, move it down
+      top = 20;
+    } else {
+      // Position it near the click
+      top = position.y - 20;
+    }
+    
+    return { left, top, width: panelWidth };
   };
 
   // Calculate position once when component mounts
@@ -229,10 +230,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         style={{
           left: panelPosition.left,
           top: panelPosition.top,
+          width: panelPosition.width,
           ...panelSpring
         }}
       >
-        <div className="w-400 bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 rounded-sm overflow-hidden shadow-xl">
+        <div className="bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 rounded-sm overflow-hidden shadow-xl">
           {/* Header */}
           <div className="bg-zinc-800 px-3 py-2 flex justify-between items-center border-b border-zinc-700">
             <h2 className="text-lg font-bold text-amber-50">Moire Control Panel</h2>

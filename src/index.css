@@ -111,7 +111,7 @@
   @apply relative flex items-center;
 }
 
-/* New UI Styles */
+/* Core UI Styles */
 .border-thick {
   border-width: 3px;
 }
@@ -120,31 +120,11 @@
   width: 400px;
 }
 
-@keyframes soft-float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-@keyframes soft-pulse {
-  0%, 100% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes slide-up {
+@keyframes fade-in {
   from {
-    transform: translateY(20px);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -156,15 +136,6 @@
 
 .fade-in {
   animation-name: fade-in;
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Modern Control Panel Styling */
