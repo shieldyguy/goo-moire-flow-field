@@ -1,6 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Canvas from '@/components/Canvas';
+import { decodePreset } from '@/lib/encoding/presetEncoder';
 
 const Index = () => {
   // Default settings
@@ -21,9 +21,25 @@ const Index = () => {
       enabled: false,
       blur: 8,
       threshold: 128,
-      resolution: 100 // Keep the resolution property
+      resolution: 100
     }
   });
+
+  // Handle URL parameters on load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const preset = urlParams.get('p');
+    
+    if (preset) {
+      try {
+        const decodedSettings = decodePreset(preset);
+        setSettings(decodedSettings);
+      } catch (error) {
+        console.error('Failed to load preset:', error);
+        // Could add a toast notification here
+      }
+    }
+  }, []);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background">

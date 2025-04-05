@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, Share2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ColorPicker from './ColorPicker';
+import { useToast } from "@/components/ui/use-toast";
+import { encodePreset } from '@/lib/encoding/presetEncoder';
 
 interface RadialMenuProps {
   position: { x: number; y: number };
@@ -20,6 +22,33 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const handleExport = () => {
+    try {
+      const encoded = encodePreset(settings);
+      const url = `${window.location.origin}${window.location.pathname}?p=${encoded}`;
+      
+      navigator.clipboard.writeText(url).then(() => {
+        toast({
+          title: "Preset Exported",
+          description: "URL copied to clipboard!",
+        });
+      }).catch(() => {
+        toast({
+          title: "Export Failed",
+          description: "Could not copy to clipboard",
+          variant: "destructive",
+        });
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Could not encode preset",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Calculate menu size and position based on screen size
   const menuSize = Math.min(window.innerWidth, window.innerHeight) * 0.6;
@@ -48,6 +77,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
     { id: 'layer1', label: 'Layer 1', icon: '1' },
     { id: 'layer2', label: 'Layer 2', icon: '2' },
     { id: 'goo', label: 'Goo Effect', icon: 'G' },
+    { id: 'export', label: 'Export', icon: <Share2 className="h-4 w-4" />, action: handleExport },
   ];
 
   const itemPositions = menuItems.map((item, index) => {
@@ -131,6 +161,16 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
           <RotateCcw className="h-4 w-4" />
         </Button>
 
+        {/* Export button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute bottom-2 right-2 rounded-full"
+          onClick={handleExport}
+        >
+          <Share2 className="h-4 w-4" />
+        </Button>
+
         {/* Menu items */}
         {itemPositions.map((item) => (
           <div
@@ -139,7 +179,13 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
             style={{
               transform: `translate(${item.x}px, ${item.y}px)`
             }}
-            onClick={() => setActiveSection(activeSection === item.id ? null : item.id)}
+            onClick={() => {
+              if (item.action) {
+                item.action();
+              } else {
+                setActiveSection(activeSection === item.id ? null : item.id);
+              }
+            }}
           >
             <div className="text-center">
               <div className="text-lg font-bold">{item.icon}</div>
