@@ -33,11 +33,17 @@ interface GooSettings {
   postPixelate: number;
 }
 
+interface TouchSettings {
+  enablePinchZoom: boolean;
+  enablePinchRotate: boolean;
+}
+
 interface PresetData {
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
     goo: GooSettings;
+    touch: TouchSettings;
   };
 }
 

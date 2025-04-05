@@ -3,6 +3,7 @@ import { useToast } from "@/components/ui/use-toast";
 import ControlPanel from './ControlPanel';
 import WebGLCanvas from './WebGLCanvas';
 import { encodePreset } from '@/lib/encoding/presetEncoder';
+import GestureHandler from './GestureHandler';
 
 interface CanvasProps {
   // Default values for our parameters
@@ -25,6 +26,10 @@ interface CanvasProps {
       enabled: boolean;
       prePixelate: number;
       postPixelate: number;
+    };
+    touch?: {
+      enablePinchZoom: boolean;
+      enablePinchRotate: boolean;
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
@@ -54,6 +59,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [webglSupported, setWebglSupported] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [scale, setScale] = useState(1);
 
   // Check WebGL support
   useEffect(() => {
@@ -379,57 +386,110 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setShowMenu(false);
   };
 
-  return (
-    <div ref={containerRef} className="relative w-full h-full canvas-container">
-      {/* Original Canvas */}
-      <canvas
-        ref={canvasRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: webglSupported ? 0 : 1 // Hide if WebGL is supported
-        }}
-      />
+  const handlePan = (deltaX: number, deltaY: number) => {
+    setOffset(prev => ({
+      x: prev.x + deltaX,
+      y: prev.y + deltaY
+    }));
+  };
 
-      {/* WebGL Canvas */}
-      {webglSupported && (
-        <WebGLCanvas
+  const handlePinch = (newScale: number) => {
+    if (!settings.touch?.enablePinchZoom) return;
+    
+    // Limit scale between 0.5 and 2.0
+    const clampedScale = Math.min(Math.max(newScale, 0.5), 2.0);
+    setScale(clampedScale);
+    
+    // Update spacing and size proportionally
+    setSettings(prev => ({
+      ...prev,
+      layer2: {
+        ...prev.layer2,
+        spacing: settings.layer2.spacing * clampedScale,
+        size: settings.layer2.size * clampedScale
+      }
+    }));
+  };
+
+  const handleRotate = (newRotation: number) => {
+    if (!settings.touch?.enablePinchRotate) return;
+    
+    // Update rotation (in degrees)
+    setRotation(prev => prev + newRotation);
+    
+    // Update layer rotation
+    setSettings(prev => ({
+      ...prev,
+      layer2: {
+        ...prev.layer2,
+        rotation: settings.layer2.rotation + newRotation
+      }
+    }));
+  };
+
+  const handleDoubleTap = (x: number, y: number) => {
+    setMenuPosition({ x, y });
+    setShowMenu(true);
+  };
+
+  return (
+    <GestureHandler
+      onPan={handlePan}
+      onPinch={handlePinch}
+      onRotate={handleRotate}
+      onDoubleTap={handleDoubleTap}
+    >
+      <div ref={containerRef} className="relative w-full h-full canvas-container">
+        {/* Original Canvas */}
+        <canvas
+          ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          settings={settings}
-          offset={offset}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            opacity: webglSupported ? 0 : 1 // Hide if WebGL is supported
+          }}
         />
-      )}
 
-      {/* Interaction layer */}
-      <div
-        className="absolute inset-0 interaction-layer"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onDoubleClick={handleDoubleClick}
-      />
+        {/* WebGL Canvas */}
+        {webglSupported && (
+          <WebGLCanvas
+            width={dimensions.width}
+            height={dimensions.height}
+            settings={settings}
+            offset={offset}
+          />
+        )}
 
-      {/* Control Panel */}
-      {showMenu && (
-        <ControlPanel
-          position={menuPosition}
-          settings={settings}
-          setSettings={setSettings}
-          onClose={() => setShowMenu(false)}
+        {/* Interaction layer */}
+        <div
+          className="absolute inset-0 interaction-layer"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onDoubleClick={handleDoubleClick}
         />
-      )}
-    </div>
+
+        {/* Control Panel */}
+        {showMenu && (
+          <ControlPanel
+            position={menuPosition}
+            settings={settings}
+            setSettings={setSettings}
+            onClose={() => setShowMenu(false)}
+          />
+        )}
+      </div>
+    </GestureHandler>
   );
 };
 
