@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from "react";
 
 interface WebGLCanvasProps {
@@ -86,13 +87,32 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
 
     // Apply post-processing if enabled
     if (settings.goo.enabled) {
-      const filter = new window.WebGLImageFilter();
-      filter.addFilter("blur", 40.0);
-      filter.addFilter("brightness", 1000);
-      //filter.addFilter("convolution", [1, 0.5, 0, -1, -0.5, -1, 1, 0 - 0.2, 1]);
-      const result = filter.apply(canvas);
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(result, 0, 0);
+      // Create a temp canvas for the filter process
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      if (tempCtx) {
+        // Copy current canvas to temp
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        // Apply WebGL filter
+        const filter = new window.WebGLImageFilter();
+        
+        // Apply blur based on settings
+        filter.addFilter("blur", settings.goo.blur);
+        
+        // Apply threshold effect (simulated with brightness/contrast)
+        const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range
+        filter.addFilter("brightness", thresholdFactor * 10);
+        filter.addFilter("contrast", 20);
+        
+        // Apply the filter and draw back to original canvas
+        const result = filter.apply(tempCanvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(result, 0, 0);
+      }
     }
   };
 

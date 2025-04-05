@@ -18,9 +18,9 @@ const Index = () => {
       color: '#5555ff'
     },
     goo: {
+      enabled: false,
       blur: 8,
-      threshold: 128,
-      resolution: 100 // Default is full resolution
+      threshold: 128
     }
   });
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -85,9 +86,9 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
         color: '#5555ff'
       },
       goo: {
+        enabled: false,
         blur: 8,
-        threshold: 128,
-        resolution: 100 // Default is full resolution
+        threshold: 128
       }
     });
   };
@@ -166,6 +167,32 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
                       onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
                     />
                   </div>
+                  
+                  {settings.goo.enabled && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Blur: {settings.goo.blur}</label>
+                        <Slider
+                          value={[settings.goo.blur]}
+                          min={1}
+                          max={50}
+                          step={1}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Threshold: {settings.goo.threshold}</label>
+                        <Slider
+                          value={[settings.goo.threshold]}
+                          min={1}
+                          max={255}
+                          step={1}
+                          onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
