@@ -14,13 +14,6 @@ const BITS = {
     THRESHOLD: 8,  // 0-255
     PRE_PIXELATE: 8, // 0-255
     POST_PIXELATE: 8  // 0-255
-  },
-  // Touch parameters
-  TOUCH: {
-    ENABLE_PINCH_ROTATE: 1,  // Boolean
-    ENABLE_PINCH_ZOOM: 1,    // Boolean
-    ROTATION_SENSITIVITY: 8,  // 0-255
-    ZOOM_SENSITIVITY: 8      // 0-255
   }
 } as const;
 
@@ -40,19 +33,11 @@ interface GooSettings {
   postPixelate: number;
 }
 
-interface TouchSettings {
-  enablePinchRotate: boolean;
-  enablePinchZoom: boolean;
-  rotationSensitivity: number;
-  zoomSensitivity: number;
-}
-
 interface PresetData {
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
     goo: GooSettings;
-    touch: TouchSettings;
   };
 }
 
@@ -84,7 +69,7 @@ export const decodePreset = (encoded: string): PresetData['settings'] => {
     const settings = JSON.parse(jsonString);
     
     // Validate the settings structure
-    if (!settings.layer1 || !settings.layer2 || !settings.goo || !settings.touch) {
+    if (!settings.layer1 || !settings.layer2 || !settings.goo) {
       throw new Error('Invalid preset format: missing required settings');
     }
     

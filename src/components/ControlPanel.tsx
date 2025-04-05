@@ -147,7 +147,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     { id: 'layer1', label: 'Layer 1', color: 'from-pink-500 to-rose-600' },
     { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
     { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
-    { id: 'touch', label: 'Touch', color: 'from-purple-500 to-indigo-600' },
   ];
 
   // Animation for menu items
@@ -251,9 +250,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         ? "bg-amber-700/70 text-amber-50" 
                         : id === 'layer2'
                           ? "bg-teal-800/70 text-teal-50"
-                          : id === 'goo'
-                            ? "bg-rose-900/70 text-rose-50"
-                            : "bg-purple-900/70 text-purple-50"
+                          : "bg-rose-900/70 text-rose-50"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                   onClick={() => setActiveSection(id)}
@@ -412,60 +409,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           />
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {activeSection === 'touch' && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm text-zinc-200">Pinch to Rotate</label>
-                        <Switch
-                          checked={settings.touch.enablePinchRotate}
-                          onCheckedChange={(checked) => handleUpdateSetting('touch', 'enablePinchRotate', checked)}
-                          className="data-[state=checked]:bg-purple-700"
-                        />
-                      </div>
-
-                      {settings.touch.enablePinchRotate && (
-                        <div>
-                          <div className="flex justify-between">
-                            <label className="text-sm text-zinc-200">Rotation Sensitivity</label>
-                            <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.touch.rotationSensitivity}</span>
-                          </div>
-                          <Slider
-                            value={[settings.touch.rotationSensitivity]}
-                            min={1}
-                            max={100}
-                            step={1}
-                            onValueChange={(value) => handleUpdateSetting('touch', 'rotationSensitivity', value[0])}
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm text-zinc-200">Pinch to Zoom</label>
-                        <Switch
-                          checked={settings.touch.enablePinchZoom}
-                          onCheckedChange={(checked) => handleUpdateSetting('touch', 'enablePinchZoom', checked)}
-                          className="data-[state=checked]:bg-purple-700"
-                        />
-                      </div>
-
-                      {settings.touch.enablePinchZoom && (
-                        <div>
-                          <div className="flex justify-between">
-                            <label className="text-sm text-zinc-200">Zoom Sensitivity</label>
-                            <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.touch.zoomSensitivity}</span>
-                          </div>
-                          <Slider
-                            value={[settings.touch.zoomSensitivity]}
-                            min={1}
-                            max={100}
-                            step={1}
-                            onValueChange={(value) => handleUpdateSetting('touch', 'zoomSensitivity', value[0])}
-                          />
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

@@ -23,12 +23,6 @@ interface WebGLCanvasProps {
       prePixelate: number;
       postPixelate: number;
     };
-    touch: {
-      enablePinchRotate: boolean;
-      enablePinchZoom: boolean;
-      rotationSensitivity: number;
-      zoomSensitivity: number;
-    };
   };
   offset: {
     x: number;
