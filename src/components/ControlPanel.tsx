@@ -415,7 +415,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <Slider
                               value={[settings[activeSection].numShapes || 3]}
                               min={1}
-                              max={10}
+                              max={30}
                               step={1}
                               onValueChange={(value) => handleUpdateSetting(activeSection, 'numShapes', value[0])}
                             />
