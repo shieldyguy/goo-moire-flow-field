@@ -22,11 +22,11 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRotating, setIsRotating] = useState(false);
   const multiTouchActiveRef = useRef(false);
+  const lastTapTimeRef = useRef(0);
 
   useEffect(() => {
     if (!containerRef.current || !window.Hammer) return;
 
-    const lastTapTime = useRef(0);
     const doubleTapDelay = 200; // Window for double-tap detection
     const doubleTapMoveTolerance = 10; // Movement tolerance
     
@@ -67,13 +67,13 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
       }
       
       const currentTime = Date.now();
-      const timeSinceLastTap = currentTime - lastTapTime.current;
+      const timeSinceLastTap = currentTime - lastTapTimeRef.current;
       
       if (timeSinceLastTap <= doubleTapDelay && e.tapCount === 2) {
         onDoubleTap?.(e.center.x, e.center.y);
       }
       
-      lastTapTime.current = currentTime;
+      lastTapTimeRef.current = currentTime;
     });
     
     // Handle pan only in single-touch mode
