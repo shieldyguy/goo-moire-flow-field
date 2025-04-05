@@ -69,6 +69,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [scale, setScale] = useState(1);
   const [initialLayerRotation, setInitialLayerRotation] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
+  const interactionLayerRef = useRef<HTMLDivElement>(null);
 
   // Check WebGL support
   useEffect(() => {
@@ -329,65 +330,75 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setIsDragging(false);
   };
 
-  // Handle touch start
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent default to avoid scrolling
+  // Set up non-passive event listeners properly
+  useEffect(() => {
+    const interactionLayer = interactionLayerRef.current;
+    if (!interactionLayer) return;
     
-    // If we have multiple touches, don't treat this as a potential double-tap
-    if (e.touches.length > 1) {
-      return;
-    }
-    
-    const touch = e.touches[0];
-    const currentTime = new Date().getTime();
-    const timeDiff = currentTime - lastClickTimeRef.current;
-    
-    // Close menu if it's open and we touch outside
-    if (showMenu) {
-      setShowMenu(false);
-      return;
-    }
+    // These handlers will be able to use preventDefault() without warnings
+    const handleTouchStartEvent = (e: TouchEvent) => {
+      e.preventDefault(); // This works with {passive: false}
+      
+      if (e.touches.length > 1) {
+        return;
+      }
+      
+      const touch = e.touches[0];
+      const currentTime = new Date().getTime();
+      const timeDiff = currentTime - lastClickTimeRef.current;
+      
+      if (showMenu) {
+        setShowMenu(false);
+        return;
+      }
 
-    // Check for double tap with stricter timing
-    if (timeDiff < 250 && timeDiff > 50) {
-      // It's a double tap - open menu at this location
-      setMenuPosition({ x: touch.clientX, y: touch.clientY });
-      setShowMenu(true);
-      return;
-    }
-    
-    // Store this click time for next time
-    lastClickTimeRef.current = currentTime;
-    
-    // Regular touch - start dragging
-    setIsDragging(true);
-    dragStartRef.current = {
-      x: touch.clientX - offset.x,
-      y: touch.clientY - offset.y
+      if (timeDiff < 250 && timeDiff > 50) {
+        setMenuPosition({ x: touch.clientX, y: touch.clientY });
+        setShowMenu(true);
+        return;
+      }
+      
+      lastClickTimeRef.current = currentTime;
+      
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: touch.clientX - offset.x,
+        y: touch.clientY - offset.y
+      };
     };
-  };
-  
-  // Handle touch move
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent default to avoid scrolling
     
-    if (!isDragging) return;
+    const handleTouchMoveEvent = (e: TouchEvent) => {
+      e.preventDefault();
+      
+      if (!isDragging) return;
+      
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStartRef.current.x;
+      const deltaY = touch.clientY - dragStartRef.current.y;
+      
+      setOffset({
+        x: deltaX,
+        y: deltaY
+      });
+    };
     
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - dragStartRef.current.x;
-    const deltaY = touch.clientY - dragStartRef.current.y;
+    const handleTouchEndEvent = (e: TouchEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
     
-    setOffset({
-      x: deltaX,
-      y: deltaY
-    });
-  };
-  
-  // Handle touch end
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent default to avoid scrolling
-    setIsDragging(false);
-  };
+    // Add event listeners with {passive: false} option
+    interactionLayer.addEventListener('touchstart', handleTouchStartEvent, { passive: false });
+    interactionLayer.addEventListener('touchmove', handleTouchMoveEvent, { passive: false });
+    interactionLayer.addEventListener('touchend', handleTouchEndEvent, { passive: false });
+    
+    // Clean up
+    return () => {
+      interactionLayer.removeEventListener('touchstart', handleTouchStartEvent);
+      interactionLayer.removeEventListener('touchmove', handleTouchMoveEvent);
+      interactionLayer.removeEventListener('touchend', handleTouchEndEvent);
+    };
+  }, [isDragging, offset, showMenu]);
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -424,37 +435,30 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }));
   };
 
-  // Handle rotation start immediately when two fingers are detected
+  // Handle rotation start
   const handleRotateStart = () => {
-    console.log('Rotation start, enablePinchRotate:', settings.touch?.enablePinchRotate);
-    
+    // Only proceed if rotation is enabled
     if (!settings.touch?.enablePinchRotate) return;
     
-    // Always close the menu when starting rotation
+    // Close menu if it's open
     if (showMenu) {
       setShowMenu(false);
     }
     
-    // Store current rotation as starting point
+    // Store starting rotation
     setInitialLayerRotation(settings.layer2.rotation);
     setIsRotating(true);
   };
 
+  // Handle rotation gesture
   const handleRotate = (rotationDegrees: number) => {
     if (!settings.touch?.enablePinchRotate || !isRotating) return;
     
-    console.log('handleRotate called with rotation:', rotationDegrees, 'initial:', initialLayerRotation);
-    
-    // Hammer.js rotation is the TOTAL rotation since gesture start in degrees
-    // We need to apply it as a delta from our starting rotation
+    // Calculate new rotation value
     const newRotation = (initialLayerRotation + rotationDegrees) % 360;
-    
-    // Ensure rotation is always positive
     const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
     
-    console.log('New rotation calculated:', normalizedRotation);
-    
-    // Only update layer2 (the top layer)
+    // Update layer2 rotation
     setSettings(prev => ({
       ...prev,
       layer2: {
@@ -464,12 +468,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }));
   };
   
-  // Clear rotation state when gesture ends
+  // Handle rotation end
   const handleRotateEnd = () => {
-    if (!settings.touch?.enablePinchRotate) return;
     setIsRotating(false);
   };
-  
+
   // Handle double tap to open menu
   const handleDoubleTap = (x: number, y: number) => {
     // Only respond to double tap if not currently rotating
@@ -517,14 +520,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
         {/* Interaction layer */}
         <div
+          ref={interactionLayerRef}
           className="absolute inset-0 interaction-layer"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           onDoubleClick={handleDoubleClick}
         />
 
@@ -538,11 +539,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
           />
         )}
 
-        {/* Optional visual feedback for rotation */}
+        {/* Visual indicator for rotation (optional) */}
         {isRotating && (
-          <div className="fixed top-4 right-4 bg-black/80 text-white px-4 py-2 rounded-md text-md font-bold z-50 flex items-center space-x-2">
-            <span className="animate-pulse">⟳</span>
-            <span>Rotating</span>
+          <div className="fixed top-4 right-4 bg-black/80 text-white px-4 py-2 rounded-md font-bold z-50">
+            Rotating
           </div>
         )}
       </div>
