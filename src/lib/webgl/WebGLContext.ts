@@ -25,6 +25,10 @@ export class WebGLContext {
       rotation: null
     };
     this.initShaders();
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
   }
 
   private initShaders() {

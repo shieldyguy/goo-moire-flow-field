@@ -41,6 +41,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Add WebGL support state
   const [webglSupported, setWebglSupported] = useState(false);
@@ -60,6 +62,25 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (!combinedCanvasRef.current) {
       combinedCanvasRef.current = document.createElement('canvas');
     }
+  }, []);
+
+  // Handle resize and device pixel ratio
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (!containerRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      setDimensions({
+        width: Math.floor(rect.width * dpr),
+        height: Math.floor(rect.height * dpr)
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
   // Setup canvas and draw the initial pattern
@@ -364,10 +385,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       {/* Original Canvas */}
       <canvas
         ref={canvasRef}
+        width={dimensions.width}
+        height={dimensions.height}
         style={{
           position: 'absolute',
           top: 0,
@@ -382,8 +405,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       {/* WebGL Canvas */}
       {webglSupported && (
         <WebGLCanvas
-          width={canvasRef.current?.width || 0}
-          height={canvasRef.current?.height || 0}
+          width={dimensions.width}
+          height={dimensions.height}
           settings={settings}
           offset={offset}
         />

@@ -18,6 +18,8 @@ interface WebGLCanvasProps {
     };
     goo: {
       enabled: boolean;
+      blur: number;
+      threshold: number;
     };
   };
   offset: {
@@ -28,6 +30,7 @@ interface WebGLCanvasProps {
 
 const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offset }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dpr = window.devicePixelRatio || 1;
 
   // Draw a single layer of dots
   const drawLayer = (ctx: CanvasRenderingContext2D, layer: any, offsetX: number, offsetY: number) => {
@@ -39,8 +42,8 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
     ctx.translate(centerX + offsetX, centerY + offsetY);
     ctx.rotate((layer.rotation * Math.PI) / 180);
 
-    const spacing = layer.spacing;
-    const size = layer.size;
+    const spacing = layer.spacing * dpr; // Scale spacing with DPR
+    const size = layer.size * dpr; // Scale size with DPR
     const color = layer.color;
 
     // Draw dots in a grid
@@ -74,7 +77,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
     // Apply post-processing if enabled
     if (settings.goo.enabled) {
       const filter = new window.WebGLImageFilter();
-      filter.addFilter('negative');
+      filter.addFilter('brightness', 0.5);
       const result = filter.apply(canvas);
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(result, 0, 0);
@@ -104,7 +107,8 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
       style={{ 
         width: '100%', 
         height: '100%',
-        backgroundColor: 'rgba(0,0,0,0.1)'
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        imageRendering: 'pixelated'
       }}
     />
   );

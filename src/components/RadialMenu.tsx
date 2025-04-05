@@ -188,7 +188,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
                     <Slider
                       value={[settings[activeSection].size]}
                       min={1}
-                      max={20}
+                      max={80}
                       step={0.5}
                       onValueChange={(value) => handleUpdateSetting(activeSection, 'size', value[0])}
                     />
