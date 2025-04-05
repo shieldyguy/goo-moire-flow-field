@@ -382,32 +382,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                       <div>
                         <label className="text-sm text-zinc-200">Color</label>
-                        <div className="color-picker-container relative h-12">
+                        <div className="relative h-12">
                           <input
                             type="color"
                             value={settings[activeSection].color}
                             onChange={(e) => handleUpdateSetting(activeSection, 'color', e.target.value)}
-                            className="w-full h-full opacity-100 cursor-pointer absolute z-10"
+                            className="w-full h-full opacity-0 cursor-pointer absolute z-10"
                           />
                           <div 
-                            className="absolute inset-0 pointer-events-none"
+                            className="absolute inset-0"
                             style={{ backgroundColor: settings[activeSection].color }}
                           />
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 text-xs bg-zinc-900/80 text-zinc-200 font-mono pointer-events-none">
-                            {settings[activeSection].color.toUpperCase()}
-                          </div>
-                        </div>
-                        <div className="mt-1.5 grid grid-cols-6 gap-1">
-                          {['#ff5555', '#5555ff', '#55ff55', '#ffff55', '#ff55ff', '#55ffff', 
-                            '#ff9955', '#9955ff', '#55ff99', '#99ff55', '#ff55aa', '#55aaff'].map((color) => (
-                            <button
-                              key={color}
-                              className="w-full aspect-square hover:opacity-80 focus:outline-none"
-                              style={{ backgroundColor: color }}
-                              onClick={() => handleUpdateSetting(activeSection, 'color', color)}
-                              aria-label={`Select color ${color}`}
-                            />
-                          ))}
                         </div>
                       </div>
                     </div>
