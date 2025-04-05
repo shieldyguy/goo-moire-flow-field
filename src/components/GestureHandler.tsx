@@ -92,12 +92,23 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
 
     // Rotation handling - immediate response
     hammer.on('rotatestart', (e) => {
+      console.log('ROTATION START detected');
       setIsRotating(true);
       onRotateStart?.();
     });
 
     hammer.on('rotate', (e) => {
       if (multiTouchActiveRef.current) {
+        // Dump all rotation-related properties for debugging
+        console.log('ROTATION EVENT', {
+          rotation: e.rotation,
+          velocity: e.velocity,
+          direction: e.direction,
+          center: e.center,
+          pointers: e.pointers.length
+        });
+        
+        // Directly pass the rotation value
         onRotate(e.rotation);
       }
     });

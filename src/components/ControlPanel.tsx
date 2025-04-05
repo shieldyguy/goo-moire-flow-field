@@ -142,20 +142,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     };
   }, [onClose]);
 
-  {/*}
   // Menu items 
   const menuItems = [
     { id: 'layer1', label: 'Layer 1', color: 'from-pink-500 to-rose-600' },
     { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
     { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
     { id: 'touch', label: 'Touch', color: 'from-purple-500 to-indigo-600' },
-  ];*/}
-
-  // Menu items 
-  const menuItems = [
-    { id: 'layer1', label: 'Layer 1', color: 'from-pink-500 to-rose-600' },
-    { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
-    { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
   ];
 
   // Animation for menu items

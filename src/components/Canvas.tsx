@@ -426,6 +426,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   // Handle rotation start immediately when two fingers are detected
   const handleRotateStart = () => {
+    console.log('Rotation start, enablePinchRotate:', settings.touch?.enablePinchRotate);
+    
     if (!settings.touch?.enablePinchRotate) return;
     
     // Always close the menu when starting rotation
@@ -441,12 +443,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleRotate = (rotationDegrees: number) => {
     if (!settings.touch?.enablePinchRotate || !isRotating) return;
     
-    // Note: Hammer.js already provides rotation in degrees, not radians
-    // We just need to calculate the new rotation based on initial rotation
+    console.log('handleRotate called with rotation:', rotationDegrees, 'initial:', initialLayerRotation);
+    
+    // Hammer.js rotation is the TOTAL rotation since gesture start in degrees
+    // We need to apply it as a delta from our starting rotation
     const newRotation = (initialLayerRotation + rotationDegrees) % 360;
     
     // Ensure rotation is always positive
     const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
+    
+    console.log('New rotation calculated:', normalizedRotation);
     
     // Only update layer2 (the top layer)
     setSettings(prev => ({
