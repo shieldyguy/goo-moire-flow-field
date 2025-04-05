@@ -3,21 +3,35 @@ import Canvas from '@/components/Canvas';
 import { decodePreset } from '@/lib/encoding/presetEncoder';
 import { useToast } from "@/components/ui/use-toast";
 
+// Function to generate random colors (same as in ControlPanel)
+const generateRandomColor = () => {
+  // Generate muted, stylish colors instead of fully saturated ones
+  const h = Math.floor(Math.random() * 360); // Hue: 0-359
+  const s = 40 + Math.floor(Math.random() * 30); // Saturation: 40-69%
+  const l = 40 + Math.floor(Math.random() * 20); // Lightness: 40-59%
+  
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
+
 const Index = () => {
   const { toast } = useToast();
-  // Default settings
+  // Generate random colors for initial load
+  const initialColor1 = generateRandomColor();
+  const initialColor2 = generateRandomColor();
+  
+  // Default settings with random colors
   const [settings, setSettings] = useState({
     layer1: {
       spacing: 30,
       size: 8,
       rotation: 0,
-      color: '#ff5555'
+      color: initialColor1
     },
     layer2: {
       spacing: 30,
       size: 8,
       rotation: 45,
-      color: '#5555ff'
+      color: initialColor2
     },
     goo: {
       enabled: false,
@@ -52,7 +66,7 @@ const Index = () => {
   }, [toast]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background">
+    <div className="h-screen w-screen overflow-hidden bg-zinc-950">
       <Canvas settings={settings} setSettings={setSettings} />
     </div>
   );

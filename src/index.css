@@ -61,6 +61,7 @@
   }
 }
 
+/* Legacy styles - maintained for backwards compatibility */
 .glass-panel {
   @apply border-2 border-white/80 rounded-full;
   background: rgba(0, 0, 0, 0.8);
@@ -83,4 +84,221 @@
 
 .slider-container {
   @apply relative flex items-center;
+}
+
+/* New UI Styles */
+.border-thick {
+  border-width: 3px;
+}
+
+.w-400 {
+  width: 400px;
+}
+
+@keyframes soft-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes soft-pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modern Control Panel Styling */
+.control-panel {
+  @apply bg-black/90 backdrop-blur-xl border-2 border-white/30 rounded-xl overflow-hidden;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+}
+
+.panel-header {
+  @apply bg-gradient-to-r from-violet-800 to-indigo-700 p-4 flex justify-between items-center border-b-2 border-white/20;
+}
+
+.panel-button {
+  @apply rounded-md text-white hover:bg-white/20 transition-all;
+}
+
+.panel-tab {
+  @apply p-4 rounded-lg text-left focus:outline-none border-2 transition-all;
+}
+
+.panel-tab-active {
+  @apply border-white/70 text-white shadow-lg;
+}
+
+.panel-tab-inactive {
+  @apply bg-gray-800/80 border-white/10 text-white/80 hover:border-white/30;
+}
+
+.slider-label {
+  @apply flex justify-between mb-2;
+}
+
+.value-badge {
+  @apply text-sm bg-white/10 px-2 py-1 rounded-md text-white font-mono;
+}
+
+/* Mini Controller Styles */
+.mini-controller {
+  @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 z-30;
+  animation: soft-float 5s infinite ease-in-out;
+}
+
+.mini-button {
+  @apply w-11 h-11 rounded-xl flex items-center justify-center shadow-md hover:shadow-lg;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mini-button:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.mini-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* QuickControls Styles */
+.quick-control-ring {
+  @apply rounded-xl bg-black/60 backdrop-blur-sm border-2 border-white/20 shadow-lg;
+}
+
+.quick-control-button {
+  @apply rounded-xl bg-black/70 border-2 border-white/20 text-white/80 hover:text-white hover:border-white/40;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quick-control-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+/* Updated Slider styles */
+.slider-thumb-highlight:hover .slider-thumb {
+  box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15);
+}
+
+/* Custom scrollbar for panels */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* New Orbital Controller Styles */
+@keyframes orbital-rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px 2px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.5);
+  }
+}
+
+.orbital-controller {
+  position: relative;
+}
+
+.orbital-controller::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, rgba(139, 92, 246, 0.5), rgba(59, 130, 246, 0.5));
+  opacity: 0.2;
+  filter: blur(15px);
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+.orbital-menu-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.orbital-menu-item:hover {
+  transform: scale(1.1);
+}
+
+.orbital-center-hub {
+  position: relative;
+  overflow: hidden;
+}
+
+.orbital-center-hub::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(
+    45deg,
+    rgba(139, 92, 246, 0.7),
+    rgba(59, 130, 246, 0),
+    rgba(139, 92, 246, 0.7)
+  );
+  animation: orbital-rotation 8s linear infinite;
+}
+
+.adaptive-panel {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: left center;
+}
+
+.adaptive-panel-right {
+  transform-origin: right center;
 }

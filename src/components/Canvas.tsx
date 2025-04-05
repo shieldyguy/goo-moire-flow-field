@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useToast } from "@/components/ui/use-toast";
-import RadialMenu from './RadialMenu';
-import { useIsMobile } from '@/hooks/use-mobile';
+import ControlPanel from './ControlPanel';
+import QuickControlsRing from './QuickControlsRing';
 import WebGLCanvas from './WebGLCanvas';
+import { encodePreset } from '@/lib/encoding/presetEncoder';
 
 interface CanvasProps {
   // Default values for our parameters
@@ -29,6 +30,16 @@ interface CanvasProps {
   setSettings: React.Dispatch<React.SetStateAction<any>>;
 }
 
+// Function to generate random colors (same as in ControlPanel and Index)
+const generateRandomColor = () => {
+  // Generate muted, stylish colors instead of fully saturated ones
+  const h = Math.floor(Math.random() * 360); // Hue: 0-359
+  const s = 40 + Math.floor(Math.random() * 30); // Saturation: 40-69%
+  const l = 40 + Math.floor(Math.random() * 20); // Lightness: 40-59%
+  
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
+
 const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -40,7 +51,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -113,9 +123,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const timer = setTimeout(() => {
       toast({
         title: "Moire Pattern Explorer",
-        description: isMobile
-          ? "Tap and drag to move patterns. Double-tap to open controls."
-          : "Double-click anywhere to open the control panel.",
+        description: "Double-click anywhere to open the control panel.",
       });
     }, 1000);
 
@@ -123,7 +131,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       window.removeEventListener('resize', resizeCanvas);
       clearTimeout(timer);
     };
-  }, [toast, isMobile]);
+  }, [toast]);
 
   // Redraw when settings change
   useEffect(() => {
@@ -279,7 +287,23 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     ctx.drawImage(tempCanvas, 0, 0);
   };
 
+  const [showQuickControls, setShowQuickControls] = useState(false);
+  const [quickControlsPosition, setQuickControlsPosition] = useState({ x: 0, y: 0 });
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Handle long press for quick controls
+  const handleLongPress = (event: React.MouseEvent | React.TouchEvent, clientX: number, clientY: number) => {
+    event.preventDefault();
+    setQuickControlsPosition({ x: clientX, y: clientY });
+    setShowQuickControls(true);
+  };
+  
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Start long press timer
+    longPressTimeoutRef.current = setTimeout(() => {
+      handleLongPress(e, e.clientX, e.clientY);
+    }, 500); // 500ms for long press
+
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
@@ -287,6 +311,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       setShowMenu(prev => !prev);
       setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
+      // Normal drag behavior
       setIsDragging(true);
       dragStartRef.current = {
         x: e.clientX - offset.x,
@@ -298,6 +323,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Clear long press timer on move
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+
     if (!isDragging) return;
 
     setOffset({
@@ -307,6 +338,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handleMouseUp = () => {
+    // Clear long press timer on mouse up
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    
     setIsDragging(false);
   };
 
@@ -315,6 +352,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const touch = e.touches[0];
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
+
+    // Start long press timer
+    longPressTimeoutRef.current = setTimeout(() => {
+      handleLongPress(e, touch.clientX, touch.clientY);
+    }, 500); // 500ms for long press
 
     if (timeDiff < 300) {
       setShowMenu(prev => !prev);
@@ -331,6 +373,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    // Clear long press timer on move
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    
     if (!isDragging) return;
     e.preventDefault();
 
@@ -343,6 +391,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
+    
+    // Clear long press timer on touch end
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    
     setIsDragging(false);
   };
 
@@ -354,6 +409,119 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handleMenuClose = () => {
     setShowMenu(false);
+  };
+
+  // Handle quick control actions
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'reset':
+        // Reset settings with random colors
+        const resetColor1 = generateRandomColor();
+        const resetColor2 = generateRandomColor();
+        
+        setSettings({
+          layer1: {
+            spacing: 30,
+            size: 8,
+            rotation: 0,
+            color: resetColor1
+          },
+          layer2: {
+            spacing: 30,
+            size: 8,
+            rotation: 45,
+            color: resetColor2
+          },
+          goo: {
+            enabled: false,
+            blur: 8,
+            threshold: 128,
+            resolution: 100
+          }
+        });
+        break;
+      case 'randomize':
+        // Generate random settings with random colors
+        const randomColor1 = generateRandomColor();
+        const randomColor2 = generateRandomColor();
+        
+        setSettings({
+          layer1: {
+            spacing: Math.floor(Math.random() * 70) + 10,
+            size: Math.floor(Math.random() * 20) + 1,
+            rotation: Math.floor(Math.random() * 360),
+            color: randomColor1
+          },
+          layer2: {
+            spacing: Math.floor(Math.random() * 70) + 10,
+            size: Math.floor(Math.random() * 20) + 1,
+            rotation: Math.floor(Math.random() * 360),
+            color: randomColor2
+          },
+          goo: {
+            enabled: Math.random() > 0.5,
+            blur: Math.floor(Math.random() * 30) + 1,
+            threshold: Math.floor(Math.random() * 200) + 50,
+            resolution: Math.floor(Math.random() * 90) + 10
+          }
+        });
+        break;
+      case 'export':
+        try {
+          const encoded = encodePreset(settings);
+          const url = `${window.location.origin}${window.location.pathname}?p=${encoded}`;
+          
+          navigator.clipboard.writeText(url).then(() => {
+            toast({
+              title: "Preset Exported",
+              description: "URL copied to clipboard!",
+            });
+          }).catch(() => {
+            toast({
+              title: "Export Failed",
+              description: "Could not copy to clipboard",
+              variant: "destructive",
+            });
+          });
+        } catch (error) {
+          toast({
+            title: "Export Failed",
+            description: "Could not encode preset",
+            variant: "destructive",
+          });
+        }
+        break;
+      case 'increase':
+        // Increase pattern sizes
+        setSettings(prev => ({
+          ...prev,
+          layer1: {
+            ...prev.layer1,
+            size: Math.min(prev.layer1.size + 2, 80)
+          },
+          layer2: {
+            ...prev.layer2,
+            size: Math.min(prev.layer2.size + 2, 80)
+          }
+        }));
+        break;
+      case 'decrease':
+        // Decrease pattern sizes
+        setSettings(prev => ({
+          ...prev,
+          layer1: {
+            ...prev.layer1,
+            size: Math.max(prev.layer1.size - 2, 1)
+          },
+          layer2: {
+            ...prev.layer2,
+            size: Math.max(prev.layer2.size - 2, 1)
+          }
+        }));
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -397,13 +565,24 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         onDoubleClick={handleDoubleClick}
       />
 
-      {/* Radial Menu */}
+      {/* Control Panel */}
       {showMenu && (
-        <RadialMenu
+        <ControlPanel
           position={menuPosition}
           settings={settings}
           setSettings={setSettings}
           onClose={() => setShowMenu(false)}
+        />
+      )}
+
+      {/* Quick Controls Ring */}
+      {showQuickControls && (
+        <QuickControlsRing
+          position={quickControlsPosition}
+          onClose={() => setShowQuickControls(false)}
+          onAction={handleQuickAction}
+          open={showQuickControls}
+          setOpen={setShowQuickControls}
         />
       )}
     </div>
