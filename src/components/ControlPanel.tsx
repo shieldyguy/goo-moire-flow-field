@@ -410,7 +410,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <Slider
                           value={[settings[activeSection].spacing]}
                           min={10}
-                          max={400}
+                          max={200}
                           step={1}
                           onValueChange={(value) => handleUpdateSetting(activeSection, 'spacing', value[0])}
                         />
