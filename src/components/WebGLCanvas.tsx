@@ -9,14 +9,18 @@ interface WebGLCanvasProps {
       size: number;
       rotation: number;
       color: string;
-      type: 'dots' | 'lines';
+      type: 'dots' | 'lines' | 'squares';
+      numShapes?: number;
+      strokeWidth?: number;
     };
     layer2: {
       spacing: number;
       size: number;
       rotation: number;
       color: string;
-      type: 'dots' | 'lines';
+      type: 'dots' | 'lines' | 'squares';
+      numShapes?: number;
+      strokeWidth?: number;
     };
     goo: {
       enabled: boolean;
@@ -41,7 +45,37 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dpr = window.devicePixelRatio || 1;
 
-  // Draw a single layer of dots or lines
+  // Helper function to draw concentric squares
+  const drawConcentricSquares = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+    numShapes: number = 3,
+    strokeWidth: number = 1
+  ) => {
+    // Number of squares to draw (use parameter or default to 3)
+    const numSquares = numShapes || 3;
+    
+    // Size reduction for each inner square
+    const sizeStep = size / numSquares;
+    
+    ctx.strokeStyle = color;
+    ctx.lineWidth = strokeWidth || 1;
+    
+    for (let i = 0; i < numSquares; i++) {
+      const currentSize = size - (sizeStep * i);
+      const halfSize = currentSize / 2;
+      
+      ctx.beginPath();
+      // Draw square from centerpoint
+      ctx.rect(x - halfSize, y - halfSize, currentSize, currentSize);
+      ctx.stroke();
+    }
+  };
+
+  // Draw a single layer of dots, lines or concentric squares
   const drawLayer = (
     ctx: CanvasRenderingContext2D,
     layer: any,
@@ -71,7 +105,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
           ctx.fill();
         }
       }
-    } else {
+    } else if (type === 'lines') {
       // Draw lines in a grid
       for (let x = -width; x < width * 2; x += spacing) {
         for (let y = -height; y < height * 2; y += spacing) {
@@ -81,6 +115,13 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
           ctx.moveTo(x - spacing / 2 - 1, y + 0.5);
           ctx.lineTo(x + spacing / 2 + 1, y + 0.5);
           ctx.stroke();
+        }
+      }
+    } else if (type === 'squares') {
+      // Draw concentric squares in a grid
+      for (let x = -width; x < width * 2; x += spacing) {
+        for (let y = -height; y < height * 2; y += spacing) {
+          drawConcentricSquares(ctx, x, y, size, color, layer.numShapes, layer.strokeWidth);
         }
       }
     }

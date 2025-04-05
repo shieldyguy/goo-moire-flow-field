@@ -23,7 +23,9 @@ interface LayerSettings {
   size: number;
   rotation: number;
   color: string;
-  type: 'dots' | 'lines';
+  type: 'dots' | 'lines' | 'squares';
+  numShapes?: number;
+  strokeWidth?: number;
 }
 
 interface GooSettings {
@@ -34,12 +36,18 @@ interface GooSettings {
   postPixelate: number;
 }
 
+interface TouchSettings {
+  enablePinchZoom: boolean;
+  enablePinchRotate: boolean;
+}
+
 interface PresetData {
   version?: number; // Optional version field for backward compatibility
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
     goo: GooSettings;
+    touch?: TouchSettings;
   };
 }
 
@@ -50,14 +58,18 @@ const DEFAULT_SETTINGS: PresetData['settings'] = {
     size: 8,
     rotation: 0,
     color: '#ffffff',
-    type: 'dots'
+    type: 'dots',
+    numShapes: 3,
+    strokeWidth: 1
   },
   layer2: {
     spacing: 30,
     size: 8,
     rotation: 45,
     color: '#ffffff',
-    type: 'dots'
+    type: 'dots',
+    numShapes: 3,
+    strokeWidth: 1
   },
   goo: {
     enabled: false,
@@ -65,6 +77,10 @@ const DEFAULT_SETTINGS: PresetData['settings'] = {
     threshold: 128,
     prePixelate: 1,
     postPixelate: 1
+  },
+  touch: {
+    enablePinchZoom: true,
+    enablePinchRotate: true
   }
 };
 
@@ -72,7 +88,7 @@ const DEFAULT_SETTINGS: PresetData['settings'] = {
 export const encodePreset = (settings: PresetData['settings']): string => {
   // Add version information to the preset
   const presetData: PresetData = {
-    version: 1,
+    version: 2, // Update version for new pattern types
     settings
   };
   
@@ -91,7 +107,8 @@ const mergeWithDefaults = (settings: Partial<PresetData['settings']>): PresetDat
   return {
     layer1: { ...DEFAULT_SETTINGS.layer1, ...settings.layer1 },
     layer2: { ...DEFAULT_SETTINGS.layer2, ...settings.layer2 },
-    goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo }
+    goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo },
+    touch: { ...DEFAULT_SETTINGS.touch, ...settings.touch }
   };
 };
 
@@ -114,8 +131,8 @@ export const decodePreset = (encoded: string): PresetData['settings'] => {
     if (data.version === undefined) {
       // Version 0 (legacy) - settings are at the root level
       return mergeWithDefaults(data as any);
-    } else if (data.version === 1) {
-      // Version 1 - settings are nested under settings property
+    } else if (data.version === 1 || data.version === 2) {
+      // Version 1 & 2 - settings are nested under settings property
       return mergeWithDefaults(data.settings);
     } else {
       throw new Error('Unsupported preset version');

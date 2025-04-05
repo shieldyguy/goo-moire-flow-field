@@ -3,6 +3,39 @@ import Canvas from '@/components/Canvas';
 import { decodePreset } from '@/lib/encoding/presetEncoder';
 import { useToast } from "@/components/ui/use-toast";
 
+// Define types to match presetEncoder
+type PatternType = 'dots' | 'lines' | 'squares';
+
+interface LayerSettings {
+  spacing: number;
+  size: number;
+  rotation: number;
+  color: string;
+  type: PatternType;
+  numShapes?: number;
+  strokeWidth?: number;
+}
+
+interface GooSettings {
+  enabled: boolean;
+  blur: number;
+  threshold: number;
+  prePixelate: number;
+  postPixelate: number;
+}
+
+interface TouchSettings {
+  enablePinchZoom: boolean;
+  enablePinchRotate: boolean;
+}
+
+interface AppSettings {
+  layer1: LayerSettings;
+  layer2: LayerSettings;
+  goo: GooSettings;
+  touch: TouchSettings;
+}
+
 // Function to generate random colors (same as in ControlPanel)
 const generateRandomColor = () => {
   // Generate muted, stylish colors instead of fully saturated ones
@@ -20,18 +53,24 @@ const Index = () => {
   const initialColor2 = generateRandomColor();
   
   // Default settings with random colors
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<AppSettings>({
     layer1: {
       spacing: 30,
       size: 8,
       rotation: 0,
-      color: initialColor1
+      color: initialColor1,
+      type: 'dots',
+      numShapes: 3,
+      strokeWidth: 1
     },
     layer2: {
       spacing: 30,
       size: 8,
       rotation: 45,
-      color: initialColor2
+      color: initialColor2,
+      type: 'dots',
+      numShapes: 3,
+      strokeWidth: 1
     },
     goo: {
       enabled: false,
@@ -54,7 +93,25 @@ const Index = () => {
     if (preset) {
       try {
         const decodedSettings = decodePreset(preset);
-        setSettings(decodedSettings);
+        // Ensure we have touch settings, even if preset doesn't include them
+        const finalSettings = {
+          ...decodedSettings,
+          // Add touch settings if they're missing
+          touch: decodedSettings.touch || {
+            enablePinchZoom: true,
+            enablePinchRotate: true
+          }
+        } as AppSettings;
+        
+        // Ensure pattern types are valid
+        if (finalSettings.layer1.type && !['dots', 'lines', 'squares'].includes(finalSettings.layer1.type)) {
+          finalSettings.layer1.type = 'dots';
+        }
+        if (finalSettings.layer2.type && !['dots', 'lines', 'squares'].includes(finalSettings.layer2.type)) {
+          finalSettings.layer2.type = 'dots';
+        }
+        
+        setSettings(finalSettings);
         /*toast({
           title: "Preset Loaded",
           description: "Successfully loaded preset from URL",

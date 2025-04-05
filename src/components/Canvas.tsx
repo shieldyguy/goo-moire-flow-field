@@ -13,12 +13,18 @@ interface CanvasProps {
       size: number;
       rotation: number;
       color: string;
+      type: 'dots' | 'lines' | 'squares';
+      numShapes?: number;
+      strokeWidth?: number;
     };
     layer2: {
       spacing: number;
       size: number;
       rotation: number;
       color: string;
+      type: 'dots' | 'lines' | 'squares';
+      numShapes?: number;
+      strokeWidth?: number;
     };
     goo: {
       blur: number;

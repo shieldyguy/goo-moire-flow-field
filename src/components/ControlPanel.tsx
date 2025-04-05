@@ -399,9 +399,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           >
                             <option value="dots">Dots</option>
                             <option value="lines">Lines</option>
+                            <option value="squares">Concentric Squares</option>
                           </select>
                         </div>
                       </div>
+
+                      {/* Conditional control for concentric shapes */}
+                      {settings[activeSection].type === 'squares' && (
+                        <>
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">Number of Squares</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].numShapes || 3}</span>
+                            </div>
+                            <Slider
+                              value={[settings[activeSection].numShapes || 3]}
+                              min={1}
+                              max={10}
+                              step={1}
+                              onValueChange={(value) => handleUpdateSetting(activeSection, 'numShapes', value[0])}
+                            />
+                          </div>
+                          
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">Stroke Width</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].strokeWidth || 1}px</span>
+                            </div>
+                            <Slider
+                              value={[settings[activeSection].strokeWidth || 1]}
+                              min={0.5}
+                              max={10}
+                              step={0.5}
+                              onValueChange={(value) => handleUpdateSetting(activeSection, 'strokeWidth', value[0])}
+                            />
+                          </div>
+                        </>
+                      )}
+
                       <div>
                         <div className="flex justify-between">
                           <label className="text-sm text-zinc-200">Spacing</label>
