@@ -80,7 +80,6 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
           ctx.beginPath();
           ctx.moveTo(x - spacing / 2 - 1, y + 0.5);
           ctx.lineTo(x + spacing / 2 + 1, y + 0.5);
-          
           ctx.stroke();
         }
       }
@@ -120,7 +119,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
         const filter = new window.WebGLImageFilter();
 
         filter.addFilter("pixelate", settings.goo.prePixelate);
-        filter.addFilter("blur", settings.goo.blur);    
+        filter.addFilter("blur", settings.goo.blur); 
         const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range     
         filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);
