@@ -379,6 +379,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <div className="space-y-2">
                       <div>
                         <div className="flex justify-between">
+                          <label className="text-sm text-zinc-200">Type</label>
+                          <select
+                            value={settings[activeSection].type}
+                            onChange={(e) => handleUpdateSetting(activeSection, 'type', e.target.value)}
+                            className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono"
+                          >
+                            <option value="dots">Dots</option>
+                            <option value="lines">Lines</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between">
                           <label className="text-sm text-zinc-200">Spacing</label>
                           <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
                         </div>

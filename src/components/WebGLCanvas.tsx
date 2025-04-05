@@ -9,12 +9,14 @@ interface WebGLCanvasProps {
       size: number;
       rotation: number;
       color: string;
+      type: 'dots' | 'lines';
     };
     layer2: {
       spacing: number;
       size: number;
       rotation: number;
       color: string;
+      type: 'dots' | 'lines';
     };
     goo: {
       enabled: boolean;
@@ -39,7 +41,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dpr = window.devicePixelRatio || 1;
 
-  // Draw a single layer of dots
+  // Draw a single layer of dots or lines
   const drawLayer = (
     ctx: CanvasRenderingContext2D,
     layer: any,
@@ -57,14 +59,29 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
     const spacing = layer.spacing * dpr; // Scale spacing with DPR
     const size = layer.size * dpr; // Scale size with DPR
     const color = layer.color;
+    const type = layer.type || 'dots'; // Default to dots if not specified
 
-    // Draw dots in a grid
-    for (let x = -width; x < width * 2; x += spacing) {
-      for (let y = -height; y < height * 2; y += spacing) {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-        ctx.fill();
+    if (type === 'dots') {
+      // Draw dots in a grid
+      for (let x = -width; x < width * 2; x += spacing) {
+        for (let y = -height; y < height * 2; y += spacing) {
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    } else {
+      // Draw lines in a grid
+      for (let x = -width; x < width * 2; x += spacing) {
+        for (let y = -height; y < height * 2; y += spacing) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = size;
+          ctx.beginPath();
+          ctx.moveTo(x - spacing/2, y);
+          ctx.lineTo(x + spacing/2, y);
+          ctx.stroke();
+        }
       }
     }
 

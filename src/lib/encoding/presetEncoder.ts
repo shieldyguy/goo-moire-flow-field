@@ -23,6 +23,7 @@ interface LayerSettings {
   size: number;
   rotation: number;
   color: string;
+  type: 'dots' | 'lines';
 }
 
 interface GooSettings {
@@ -54,13 +55,15 @@ const DEFAULT_SETTINGS: PresetData['settings'] = {
     spacing: 30,
     size: 8,
     rotation: 0,
-    color: '#ffffff'
+    color: '#ffffff',
+    type: 'dots'
   },
   layer2: {
     spacing: 30,
     size: 8,
     rotation: 45,
-    color: '#ffffff'
+    color: '#ffffff',
+    type: 'dots'
   },
   goo: {
     enabled: false,
