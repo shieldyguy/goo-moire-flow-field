@@ -347,58 +347,64 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setIsDragging(false);
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
+  // Handle touch start
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent default to avoid scrolling
+    
     const touch = e.touches[0];
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
-
-    // Start long press timer
-    longPressTimeoutRef.current = setTimeout(() => {
-      handleLongPress(e, touch.clientX, touch.clientY);
-    }, 500); // 500ms for long press
-
-    if (timeDiff < 300) {
-      setShowMenu(prev => !prev);
+    
+    // Check for double tap
+    if (timeDiff < 300 && timeDiff > 0) {
+      // It's a double tap - open menu at this location
       setMenuPosition({ x: touch.clientX, y: touch.clientY });
-    } else {
-      setIsDragging(true);
-      dragStartRef.current = {
-        x: touch.clientX - offset.x,
-        y: touch.clientY - offset.y
-      };
+      setShowMenu(true);
+      return;
     }
-
+    
+    // Store this click time for next time
     lastClickTimeRef.current = currentTime;
+    
+    // Regular touch - start dragging
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: touch.clientX - offset.x,
+      y: touch.clientY - offset.y
+    };
   };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    // Clear long press timer on move
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
+  
+  // Handle touch move
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent default to avoid scrolling
     
     if (!isDragging) return;
-    e.preventDefault();
-
+    
     const touch = e.touches[0];
+    const deltaX = touch.clientX - dragStartRef.current.x;
+    const deltaY = touch.clientY - dragStartRef.current.y;
+    
     setOffset({
-      x: touch.clientX - dragStartRef.current.x,
-      y: touch.clientY - dragStartRef.current.y
+      x: deltaX,
+      y: deltaY
     });
   };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    
-    // Clear long press timer on touch end
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current);
-      longPressTimeoutRef.current = null;
-    }
+  
+  // Handle touch end
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent default to avoid scrolling
     
     setIsDragging(false);
+    
+    // Check if it was a quick tap (not a drag operation)
+    if (new Date().getTime() - lastClickTimeRef.current < 150) {
+      // Open quick controls
+      if (e.changedTouches && e.changedTouches.length > 0) {
+        const touch = e.changedTouches[0];
+        setQuickControlsPosition({ x: touch.clientX, y: touch.clientY });
+        setShowQuickControls(true);
+      }
+    }
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -525,7 +531,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full canvas-container">
       {/* Original Canvas */}
       <canvas
         ref={canvasRef}
@@ -554,7 +560,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
       {/* Interaction layer */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 interaction-layer"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

@@ -52,13 +52,42 @@
   body {
     @apply bg-background text-foreground;
     overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
   }
   
   html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
+    overscroll-behavior: none;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    /* Safari-specific overscroll prevention */
+    -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Fix for mobile browser scrolling issues */
+.canvas-container {
+  touch-action: none;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  /* Safari-specific overscroll prevention */
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Make sure interaction layer overrides browser defaults */
+.interaction-layer {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Legacy styles - maintained for backwards compatibility */
@@ -72,10 +101,6 @@
   @apply absolute flex items-center justify-center rounded-full text-foreground transition-all 
   hover:text-primary border-2 border-white/80;
   background: rgba(0, 0, 0, 0.8);
-}
-
-.canvas-container {
-  touch-action: none;
 }
 
 .color-swatch {

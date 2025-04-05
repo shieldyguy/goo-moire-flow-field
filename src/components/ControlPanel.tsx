@@ -232,81 +232,81 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           ...panelSpring
         }}
       >
-        <div className="w-400 bg-zinc-900/95 backdrop-blur-lg border-2 border-zinc-700 rounded-md overflow-hidden shadow-xl">
+        <div className="w-400 bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 rounded-sm overflow-hidden shadow-xl">
           {/* Header */}
-          <div className="bg-zinc-800 p-4 flex justify-between items-center border-b-2 border-zinc-700">
-            <h2 className="text-xl font-bold text-amber-50">Moire Control Panel</h2>
-            <div className="flex gap-2">
+          <div className="bg-zinc-800 px-3 py-2 flex justify-between items-center border-b border-zinc-700">
+            <h2 className="text-lg font-bold text-amber-50">Moire Control Panel</h2>
+            <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded-sm text-zinc-300 hover:bg-zinc-700 h-7 w-7"
                 onClick={resetSettings}
               >
-                <RotateCcw className="h-5 w-5" />
+                <RotateCcw className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded-sm text-zinc-300 hover:bg-zinc-700 h-7 w-7"
                 onClick={onClose}
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
           
           {/* Main content area */}
-          <div className="p-6 flex gap-6">
+          <div className="p-3 flex gap-3">
             {/* Left sidebar with tabs */}
-            <div className="w-1/3 flex flex-col gap-3">
+            <div className="w-1/3 flex flex-col gap-1.5">
               {menuItems.map(({ id, label, color }, index) => (
                 <animated.button
                   key={id}
                   style={menuItemSprings[index]}
                   className={cn(
-                    "p-4 rounded-sm text-left focus:outline-none border-2 transition-all",
+                    "py-2 px-3 rounded-sm text-left focus:outline-none border",
                     activeSection === id 
                       ? id === 'layer1' 
-                        ? "bg-amber-700/70 border-amber-600 text-amber-50 shadow-lg" 
+                        ? "bg-amber-700/70 border-amber-600 text-amber-50 shadow-sm" 
                         : id === 'layer2'
-                          ? "bg-teal-800/70 border-teal-700 text-teal-50 shadow-lg"
-                          : "bg-rose-900/70 border-rose-800 text-rose-50 shadow-lg"
+                          ? "bg-teal-800/70 border-teal-700 text-teal-50 shadow-sm"
+                          : "bg-rose-900/70 border-rose-800 text-rose-50 shadow-sm"
                       : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600"
                   )}
                   onClick={() => setActiveSection(id)}
                 >
-                  <div className="font-bold text-lg">{label}</div>
+                  <div className="font-bold text-base">{label}</div>
                 </animated.button>
               ))}
               
               {/* Export button */}
               <animated.button
                 style={menuItemSprings[3]}
-                className="mt-auto p-4 rounded-sm text-left bg-amber-800/80 text-amber-50 border-2 border-amber-700/60 hover:border-amber-600 transition-all focus:outline-none shadow-md"
+                className="mt-auto py-2 px-3 rounded-sm text-left bg-amber-800/80 text-amber-50 border border-amber-700/60 hover:border-amber-600 transition-all focus:outline-none shadow-sm"
                 onClick={handleExport}
               >
-                <div className="font-bold text-lg flex items-center gap-2">
-                  <Share2 className="h-5 w-5" />
+                <div className="font-bold text-base flex items-center gap-2">
+                  <Share2 className="h-4 w-4" />
                   Export Preset
                 </div>
               </animated.button>
             </div>
             
             {/* Right side with settings */}
-            <div className="w-2/3 bg-zinc-800/70 rounded-sm p-5 border-2 border-zinc-700">
+            <div className="w-2/3 bg-zinc-800/70 rounded-sm p-3 border border-zinc-700">
               {activeSection ? (
                 <div className="animate-in fade-in duration-300">
-                  <h3 className="text-zinc-100 font-bold mb-6 text-xl text-center">
+                  <h3 className="text-zinc-100 font-bold mb-3 text-base text-center">
                     {activeSection === 'layer1' ? 'Layer 1 Settings' :
                      activeSection === 'layer2' ? 'Layer 2 Settings' :
                      'Goo Effect Settings'}
                   </h3>
 
                   {activeSection === 'goo' && (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-sm border-2 border-zinc-700">
-                        <label className="text-base text-zinc-200 font-medium">Enable Effects</label>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-zinc-900/60 px-2 py-1.5 rounded-sm border border-zinc-700">
+                        <label className="text-sm text-zinc-200 font-medium">Enable Effects</label>
                         <Switch
                           checked={settings.goo.enabled}
                           onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
@@ -316,13 +316,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       
                       {settings.goo.enabled && (
                         <>
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             <div className="flex justify-between">
-                              <label className="text-base text-zinc-200 font-medium">Blur</label>
-                              <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings.goo.blur}</span>
+                              <label className="text-sm text-zinc-200 font-medium">Blur</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.blur}</span>
                             </div>
                             <Slider
-                              className="py-4"
+                              className="py-2"
                               value={[settings.goo.blur]}
                               min={1}
                               max={100}
@@ -331,13 +331,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             />
                           </div>
                           
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             <div className="flex justify-between">
-                              <label className="text-base text-zinc-200 font-medium">Threshold</label>
-                              <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings.goo.threshold}</span>
+                              <label className="text-sm text-zinc-200 font-medium">Threshold</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.threshold}</span>
                             </div>
                             <Slider
-                              className="py-4"
+                              className="py-2"
                               value={[settings.goo.threshold]}
                               min={1}
                               max={255}
@@ -346,13 +346,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             />
                           </div>
                           
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             <div className="flex justify-between">
-                              <label className="text-base text-zinc-200 font-medium">Resolution</label>
-                              <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings.goo.resolution}%</span>
+                              <label className="text-sm text-zinc-200 font-medium">Resolution</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.resolution}%</span>
                             </div>
                             <Slider
-                              className="py-4"
+                              className="py-2"
                               value={[settings.goo.resolution]}
                               min={10}
                               max={100}
@@ -367,14 +367,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                   {/* Layer settings */}
                   {(activeSection === 'layer1' || activeSection === 'layer2') && (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
                         <div className="flex justify-between">
-                          <label className="text-base text-zinc-200 font-medium">Spacing</label>
-                          <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
+                          <label className="text-sm text-zinc-200 font-medium">Spacing</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
                         </div>
                         <Slider
-                          className="py-4"
+                          className="py-2"
                           value={[settings[activeSection].spacing]}
                           min={10}
                           max={100}
@@ -383,13 +383,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <div className="flex justify-between">
-                          <label className="text-base text-zinc-200 font-medium">Size</label>
-                          <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings[activeSection].size}px</span>
+                          <label className="text-sm text-zinc-200 font-medium">Size</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].size}px</span>
                         </div>
                         <Slider
-                          className="py-4"
+                          className="py-2"
                           value={[settings[activeSection].size]}
                           min={1}
                           max={80}
@@ -398,13 +398,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <div className="flex justify-between">
-                          <label className="text-base text-zinc-200 font-medium">Rotation</label>
-                          <span className="text-sm bg-zinc-900/60 px-2 py-1 rounded-sm text-zinc-300 font-mono">{settings[activeSection].rotation}°</span>
+                          <label className="text-sm text-zinc-200 font-medium">Rotation</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].rotation}°</span>
                         </div>
                         <Slider
-                          className="py-4"
+                          className="py-2"
                           value={[settings[activeSection].rotation]}
                           min={0}
                           max={360}
@@ -413,9 +413,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-base text-zinc-200 font-medium">Color</label>
-                        <div className="color-picker-container relative h-16 rounded-sm overflow-hidden border-2 border-zinc-700 group">
+                      <div className="space-y-1">
+                        <label className="text-sm text-zinc-200 font-medium">Color</label>
+                        <div className="color-picker-container relative h-12 rounded-sm overflow-hidden border border-zinc-700 group">
                           <input
                             type="color"
                             value={settings[activeSection].color}
@@ -426,16 +426,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             className="absolute inset-0 rounded-sm pointer-events-none"
                             style={{ backgroundColor: settings[activeSection].color }}
                           />
-                          <div className="absolute bottom-2 right-2 px-2 py-1 text-sm bg-zinc-900/80 rounded-sm text-zinc-200 font-mono pointer-events-none">
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 text-xs bg-zinc-900/80 rounded-sm text-zinc-200 font-mono pointer-events-none">
                             {settings[activeSection].color.toUpperCase()}
                           </div>
                         </div>
-                        <div className="mt-2 grid grid-cols-6 gap-2">
+                        <div className="mt-1.5 grid grid-cols-6 gap-1">
                           {['#ff5555', '#5555ff', '#55ff55', '#ffff55', '#ff55ff', '#55ffff', 
                             '#ff9955', '#9955ff', '#55ff99', '#99ff55', '#ff55aa', '#55aaff'].map((color) => (
                             <button
                               key={color}
-                              className="w-full aspect-square rounded-sm border-2 border-zinc-700 hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                              className="w-full aspect-square rounded-sm border border-zinc-700 hover:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                               style={{ backgroundColor: color }}
                               onClick={() => handleUpdateSetting(activeSection, 'color', color)}
                               aria-label={`Select color ${color}`}
@@ -447,17 +447,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-4">
-                  <Settings className="w-12 h-12" />
-                  <p>Select a category to adjust settings</p>
+                <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-2">
+                  <Settings className="w-8 h-8" />
+                  <p className="text-sm">Select a category to adjust settings</p>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Footer */}
-          <div className="bg-zinc-900 p-3 border-t-2 border-zinc-800 text-center text-zinc-500 text-sm">
-            Press ESC or click outside to close
           </div>
         </div>
       </animated.div>
