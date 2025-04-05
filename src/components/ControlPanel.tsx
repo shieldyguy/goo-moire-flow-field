@@ -474,7 +474,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           value={[settings[activeSection].rotation]}
                           min={0}
                           max={360}
-                          step={1}
+                          step={0.1}
                           onValueChange={(value) => handleUpdateSetting(activeSection, 'rotation', value[0])}
                         />
                       </div>
