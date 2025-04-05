@@ -20,7 +20,8 @@ const Index = () => {
     goo: {
       enabled: false,
       blur: 8,
-      threshold: 128
+      threshold: 128,
+      resolution: 100 // Keep the resolution property
     }
   });
 

@@ -21,6 +21,7 @@ interface WebGLCanvasProps {
       enabled: boolean;
       blur: number;
       threshold: number;
+      resolution: number;
     };
   };
   offset: {
