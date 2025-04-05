@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Canvas from '@/components/Canvas';
 import { decodePreset } from '@/lib/encoding/presetEncoder';
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  const { toast } = useToast();
   // Default settings
   const [settings, setSettings] = useState({
     layer1: {
@@ -34,12 +36,20 @@ const Index = () => {
       try {
         const decodedSettings = decodePreset(preset);
         setSettings(decodedSettings);
+        toast({
+          title: "Preset Loaded",
+          description: "Successfully loaded preset from URL",
+        });
       } catch (error) {
         console.error('Failed to load preset:', error);
-        // Could add a toast notification here
+        toast({
+          title: "Failed to Load Preset",
+          description: "The preset URL appears to be invalid or corrupted",
+          variant: "destructive",
+        });
       }
     }
-  }, []);
+  }, [toast]);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background">
