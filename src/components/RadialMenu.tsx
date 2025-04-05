@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -151,8 +150,14 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
 
         {/* Settings panel */}
         {activeSection && (
-          <div className="absolute top-1/2 left-0 w-full px-8 transform -translate-y-1/2">
-            <div className="bg-background/90 backdrop-blur rounded-lg p-4 animate-fade-in">
+          <div 
+            className="absolute top-0 left-full ml-12 transform -translate-y-1/2"
+            style={{
+              top: `${menuRadius}px`, // Position at the vertical center of the menu
+              minWidth: '300px' // Ensure the panel has enough width for controls
+            }}
+          >
+            <div className="border-2 border-white/80 rounded-lg p-4 animate-fade-in bg-black/80">
               <h3 className="text-primary font-semibold mb-4 text-center">
                 {activeSection === 'layer1' ? 'Layer 1 Settings' :
                   activeSection === 'layer2' ? 'Layer 2 Settings' :
@@ -176,7 +181,7 @@ const RadialMenu: React.FC<RadialMenuProps> = ({
                         <Slider
                           value={[settings.goo.blur]}
                           min={1}
-                          max={50}
+                          max={100}
                           step={1}
                           onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
                         />

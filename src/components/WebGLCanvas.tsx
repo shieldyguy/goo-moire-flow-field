@@ -106,8 +106,9 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
         
         // Apply threshold effect (simulated with brightness/contrast)
         const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range
-        filter.addFilter("brightness", thresholdFactor * 10);
+        filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);
+        filter.addFilter("pixelate", 1);
         
         // Apply the filter and draw back to original canvas
         const result = filter.apply(tempCanvas);
