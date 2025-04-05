@@ -333,6 +333,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault(); // Prevent default to avoid scrolling
     
+    // If we have multiple touches, don't treat this as a potential double-tap
+    if (e.touches.length > 1) {
+      return;
+    }
+    
     const touch = e.touches[0];
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
@@ -343,8 +348,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       return;
     }
 
-    // Check for double tap
-    if (timeDiff < 300 && timeDiff > 0) {
+    // Check for double tap with stricter timing
+    if (timeDiff < 250 && timeDiff > 50) {
       // It's a double tap - open menu at this location
       setMenuPosition({ x: touch.clientX, y: touch.clientY });
       setShowMenu(true);
@@ -419,8 +424,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }));
   };
 
+  // Handle rotation start immediately when two fingers are detected
   const handleRotateStart = () => {
     if (!settings.touch?.enablePinchRotate) return;
+    
+    // Always close the menu when starting rotation
+    if (showMenu) {
+      setShowMenu(false);
+    }
     
     // Store current rotation as starting point
     setInitialLayerRotation(settings.layer2.rotation);
@@ -446,13 +457,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       }
     }));
   };
-
+  
+  // Clear rotation state when gesture ends
   const handleRotateEnd = () => {
     if (!settings.touch?.enablePinchRotate) return;
     setIsRotating(false);
   };
-
+  
+  // Handle double tap to open menu
   const handleDoubleTap = (x: number, y: number) => {
+    // Only respond to double tap if not currently rotating
+    if (isRotating) return;
+    
     setMenuPosition({ x, y });
     setShowMenu(true);
   };
@@ -518,8 +534,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
         {/* Optional visual feedback for rotation */}
         {isRotating && (
-          <div className="fixed top-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
-            Rotating
+          <div className="fixed top-4 right-4 bg-black/80 text-white px-4 py-2 rounded-md text-md font-bold z-50 flex items-center space-x-2">
+            <span className="animate-pulse">⟳</span>
+            <span>Rotating</span>
           </div>
         )}
       </div>

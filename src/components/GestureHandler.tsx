@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, CSSProperties } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface GestureHandlerProps {
   onPan: (deltaX: number, deltaY: number) => void;
@@ -21,62 +21,90 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRotating, setIsRotating] = useState(false);
+  const multiTouchActiveRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current || !window.Hammer) return;
 
+    const lastTapTime = useRef(0);
+    const doubleTapDelay = 200; // Window for double-tap detection
+    const doubleTapMoveTolerance = 10; // Movement tolerance
+    
     const hammer = new window.Hammer(containerRef.current);
     
     // Configure gestures
     hammer.get('pan').set({ direction: window.Hammer.DIRECTION_ALL });
     hammer.get('pinch').set({ enable: true });
-    hammer.get('rotate').set({ enable: true });
-    
-    // Improve double-tap recognition to avoid conflicts
-    const doubleTap = new window.Hammer.Tap({
-      event: 'doubletap',
-      taps: 2,
-      interval: 300,      // Minimum ms between taps (prevent "flam" recognition)
-      threshold: 10,      // Maximum px movement allowed between taps
-      posThreshold: 20    // Maximum px movement during a tap
+    hammer.get('rotate').set({ 
+      enable: true,
+      threshold: 1  // Minimal threshold for immediate rotation detection
     });
-    hammer.add(doubleTap);
+    hammer.get('tap').set({ 
+      enable: true,
+      taps: 2,
+      interval: doubleTapDelay,
+      threshold: doubleTapMoveTolerance,
+      posThreshold: doubleTapMoveTolerance
+    });
     
-    // Disable double-tap when multiple pointers are detected
-    hammer.on('hammer.input', function(ev) {
-      if (ev.pointers.length > 1) {
-        hammer.get('doubletap').set({ enable: false });
-      } else {
-        hammer.get('doubletap').set({ enable: true });
+    // Detect multi-touch immediately
+    hammer.on('hammer.input', function(e) {
+      // As soon as we detect multiple pointers, enter multi-touch mode
+      if (e.pointers.length > 1) {
+        multiTouchActiveRef.current = true;
+      } 
+      // Only exit multi-touch mode when all touches are lifted
+      else if (e.isFinal) {
+        multiTouchActiveRef.current = false;
       }
     });
     
-    // Add event handlers
+    // Handle double tap - only allow when not in multi-touch mode
+    hammer.on('tap', function(e) {
+      // Immediately reject any double-taps during multi-touch
+      if (multiTouchActiveRef.current) {
+        return;
+      }
+      
+      const currentTime = Date.now();
+      const timeSinceLastTap = currentTime - lastTapTime.current;
+      
+      if (timeSinceLastTap <= doubleTapDelay && e.tapCount === 2) {
+        onDoubleTap?.(e.center.x, e.center.y);
+      }
+      
+      lastTapTime.current = currentTime;
+    });
+    
+    // Handle pan only in single-touch mode
     hammer.on('pan', (e) => {
-      onPan(e.deltaX, e.deltaY);
+      if (!multiTouchActiveRef.current) {
+        onPan(e.deltaX, e.deltaY);
+      }
     });
 
+    // Multi-touch gestures
     hammer.on('pinch', (e) => {
-      onPinch(e.scale);
+      if (multiTouchActiveRef.current) {
+        onPinch(e.scale);
+      }
     });
 
-    // Enhanced rotation handlers
-    hammer.on('rotatestart', () => {
+    // Rotation handling - immediate response
+    hammer.on('rotatestart', (e) => {
       setIsRotating(true);
       onRotateStart?.();
     });
 
     hammer.on('rotate', (e) => {
-      onRotate(e.rotation);
+      if (multiTouchActiveRef.current) {
+        onRotate(e.rotation);
+      }
     });
 
-    hammer.on('rotateend', () => {
+    hammer.on('rotateend', (e) => {
       setIsRotating(false);
       onRotateEnd?.();
-    });
-    
-    hammer.on('doubletap', (e) => {
-      onDoubleTap(e.center.x, e.center.y);
     });
 
     return () => {
