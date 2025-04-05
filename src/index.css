@@ -172,45 +172,6 @@
   @apply text-sm bg-white/10 px-2 py-1 rounded-md text-white font-mono;
 }
 
-/* Mini Controller Styles */
-.mini-controller {
-  @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 z-30;
-  animation: soft-float 5s infinite ease-in-out;
-}
-
-.mini-button {
-  @apply w-11 h-11 rounded-xl flex items-center justify-center shadow-md hover:shadow-lg;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mini-button:hover {
-  transform: translateY(-2px) scale(1.05);
-}
-
-.mini-button:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-/* QuickControls Styles */
-.quick-control-ring {
-  @apply rounded-xl bg-black/60 backdrop-blur-sm border-2 border-white/20 shadow-lg;
-}
-
-.quick-control-button {
-  @apply rounded-xl bg-black/70 border-2 border-white/20 text-white/80 hover:text-white hover:border-white/40;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.quick-control-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
-}
-
-/* Updated Slider styles */
-.slider-thumb-highlight:hover .slider-thumb {
-  box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15);
-}
-
 /* Custom scrollbar for panels */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
