@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from "react";
 
 interface WebGLCanvasProps {
   width: number;
@@ -28,14 +28,24 @@ interface WebGLCanvasProps {
   };
 }
 
-const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offset }) => {
+const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
+  width,
+  height,
+  settings,
+  offset,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dpr = window.devicePixelRatio || 1;
 
   // Draw a single layer of dots
-  const drawLayer = (ctx: CanvasRenderingContext2D, layer: any, offsetX: number, offsetY: number) => {
+  const drawLayer = (
+    ctx: CanvasRenderingContext2D,
+    layer: any,
+    offsetX: number,
+    offsetY: number
+  ) => {
     ctx.save();
-    
+
     // Center the canvas
     const centerX = width / 2;
     const centerY = height / 2;
@@ -64,7 +74,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Clear canvas
@@ -77,7 +87,9 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
     // Apply post-processing if enabled
     if (settings.goo.enabled) {
       const filter = new window.WebGLImageFilter();
-      filter.addFilter('brightness', 0.5);
+      filter.addFilter("blur", 40.0);
+      filter.addFilter("brightness", 1000);
+      //filter.addFilter("convolution", [1, 0.5, 0, -1, -0.5, -1, 1, 0 - 0.2, 1]);
       const result = filter.apply(canvas);
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(result, 0, 0);
@@ -104,14 +116,14 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({ width, height, settings, offs
       ref={canvasRef}
       width={width}
       height={height}
-      style={{ 
-        width: '100%', 
-        height: '100%',
-        backgroundColor: 'rgba(0,0,0,0.1)',
-        imageRendering: 'pixelated'
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0,0,0,0.1)",
+        imageRendering: "pixelated",
       }}
     />
   );
 };
 
-export default WebGLCanvas; 
+export default WebGLCanvas;
