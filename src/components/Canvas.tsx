@@ -288,8 +288,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
+    // Close menu if it's open and we click outside
+    if (showMenu) {
+      setShowMenu(false);
+      return;
+    }
+
     if (timeDiff < 300) {
-      setShowMenu(prev => !prev);
+      setShowMenu(true);
       setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
       // Normal drag behavior
@@ -324,6 +330,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
     
+    // Close menu if it's open and we touch outside
+    if (showMenu) {
+      setShowMenu(false);
+      return;
+    }
+
     // Check for double tap
     if (timeDiff < 300 && timeDiff > 0) {
       // It's a double tap - open menu at this location

@@ -234,61 +234,38 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           ...panelSpring
         }}
       >
-        <div className="bg-zinc-900/95 backdrop-blur-lg border border-zinc-700 rounded-sm overflow-hidden shadow-xl">
-          {/* Header */}
-          <div className="bg-zinc-800 px-3 py-2 flex justify-between items-center border-b border-zinc-700">
-            <h2 className="text-lg font-bold text-amber-50">Moire Control Panel</h2>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-sm text-zinc-300 hover:bg-zinc-700 h-7 w-7"
-                onClick={resetSettings}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-sm text-zinc-300 hover:bg-zinc-700 h-7 w-7"
-                onClick={onClose}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
+        <div className="bg-zinc-900/95 backdrop-blur-lg overflow-hidden shadow-xl">
           {/* Main content area */}
-          <div className="p-3 flex gap-3">
+          <div className="flex">
             {/* Left sidebar with tabs */}
-            <div className="w-1/3 flex flex-col gap-1.5">
+            <div className="w-1/3 flex flex-col border-r border-zinc-700">
               {menuItems.map(({ id, label, color }, index) => (
                 <animated.button
                   key={id}
                   style={menuItemSprings[index]}
                   className={cn(
-                    "py-2 px-3 rounded-sm text-left focus:outline-none border",
+                    "py-2 px-3 text-left focus:outline-none",
                     activeSection === id 
                       ? id === 'layer1' 
-                        ? "bg-amber-700/70 border-amber-600 text-amber-50 shadow-sm" 
+                        ? "bg-amber-700/70 text-amber-50" 
                         : id === 'layer2'
-                          ? "bg-teal-800/70 border-teal-700 text-teal-50 shadow-sm"
-                          : "bg-rose-900/70 border-rose-800 text-rose-50 shadow-sm"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600"
+                          ? "bg-teal-800/70 text-teal-50"
+                          : "bg-rose-900/70 text-rose-50"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                   onClick={() => setActiveSection(id)}
                 >
-                  <div className="font-bold text-base">{label}</div>
+                  <div className="font-medium">{label}</div>
                 </animated.button>
               ))}
               
               {/* Export button */}
               <animated.button
                 style={menuItemSprings[3]}
-                className="mt-auto py-2 px-3 rounded-sm text-left bg-amber-800/80 text-amber-50 border border-amber-700/60 hover:border-amber-600 transition-all focus:outline-none shadow-sm"
+                className="mt-auto py-2 px-3 text-left bg-amber-800/80 text-amber-50 hover:bg-amber-700/80 transition-all focus:outline-none"
                 onClick={handleExport}
               >
-                <div className="font-bold text-base flex items-center gap-2">
+                <div className="font-medium flex items-center gap-2">
                   <Share2 className="h-4 w-4" />
                   Export Preset
                 </div>
@@ -296,19 +273,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
             
             {/* Right side with settings */}
-            <div className="w-2/3 bg-zinc-800/70 rounded-sm p-3 border border-zinc-700">
+            <div className="w-2/3 bg-zinc-800/70 p-2">
               {activeSection ? (
                 <div className="animate-in fade-in duration-300">
-                  <h3 className="text-zinc-100 font-bold mb-3 text-base text-center">
-                    {activeSection === 'layer1' ? 'Layer 1 Settings' :
-                     activeSection === 'layer2' ? 'Layer 2 Settings' :
-                     'Goo Effect Settings'}
-                  </h3>
-
                   {activeSection === 'goo' && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between bg-zinc-900/60 px-2 py-1.5 rounded-sm border border-zinc-700">
-                        <label className="text-sm text-zinc-200 font-medium">Enable Effects</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-zinc-200">Enable Effects</label>
                         <Switch
                           checked={settings.goo.enabled}
                           onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
@@ -318,13 +289,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       
                       {settings.goo.enabled && (
                         <>
-                          <div className="space-y-1">
+                          <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200 font-medium">Blur</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.blur}</span>
+                              <label className="text-sm text-zinc-200">Blur</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.blur}</span>
                             </div>
                             <Slider
-                              className="py-2"
                               value={[settings.goo.blur]}
                               min={1}
                               max={100}
@@ -333,13 +303,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             />
                           </div>
                           
-                          <div className="space-y-1">
+                          <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200 font-medium">Threshold</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.threshold}</span>
+                              <label className="text-sm text-zinc-200">Threshold</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.threshold}</span>
                             </div>
                             <Slider
-                              className="py-2"
                               value={[settings.goo.threshold]}
                               min={1}
                               max={255}
@@ -348,13 +317,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             />
                           </div>
                           
-                          <div className="space-y-1">
+                          <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200 font-medium">Resolution</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings.goo.resolution}%</span>
+                              <label className="text-sm text-zinc-200">Resolution</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.resolution}%</span>
                             </div>
                             <Slider
-                              className="py-2"
                               value={[settings.goo.resolution]}
                               min={10}
                               max={100}
@@ -369,14 +337,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                   {/* Layer settings */}
                   {(activeSection === 'layer1' || activeSection === 'layer2') && (
-                    <div className="space-y-3">
-                      <div className="space-y-1">
+                    <div className="space-y-2">
+                      <div>
                         <div className="flex justify-between">
-                          <label className="text-sm text-zinc-200 font-medium">Spacing</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
+                          <label className="text-sm text-zinc-200">Spacing</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
                         </div>
                         <Slider
-                          className="py-2"
                           value={[settings[activeSection].spacing]}
                           min={10}
                           max={100}
@@ -385,13 +352,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-1">
+                      <div>
                         <div className="flex justify-between">
-                          <label className="text-sm text-zinc-200 font-medium">Size</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].size}px</span>
+                          <label className="text-sm text-zinc-200">Size</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].size}px</span>
                         </div>
                         <Slider
-                          className="py-2"
                           value={[settings[activeSection].size]}
                           min={1}
                           max={80}
@@ -400,13 +366,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-1">
+                      <div>
                         <div className="flex justify-between">
-                          <label className="text-sm text-zinc-200 font-medium">Rotation</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 rounded-sm text-zinc-300 font-mono">{settings[activeSection].rotation}°</span>
+                          <label className="text-sm text-zinc-200">Rotation</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].rotation}°</span>
                         </div>
                         <Slider
-                          className="py-2"
                           value={[settings[activeSection].rotation]}
                           min={0}
                           max={360}
@@ -415,9 +380,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         />
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-sm text-zinc-200 font-medium">Color</label>
-                        <div className="color-picker-container relative h-12 rounded-sm overflow-hidden border border-zinc-700 group">
+                      <div>
+                        <label className="text-sm text-zinc-200">Color</label>
+                        <div className="color-picker-container relative h-12">
                           <input
                             type="color"
                             value={settings[activeSection].color}
@@ -425,10 +390,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             className="w-full h-full opacity-100 cursor-pointer absolute z-10"
                           />
                           <div 
-                            className="absolute inset-0 rounded-sm pointer-events-none"
+                            className="absolute inset-0 pointer-events-none"
                             style={{ backgroundColor: settings[activeSection].color }}
                           />
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 text-xs bg-zinc-900/80 rounded-sm text-zinc-200 font-mono pointer-events-none">
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 text-xs bg-zinc-900/80 text-zinc-200 font-mono pointer-events-none">
                             {settings[activeSection].color.toUpperCase()}
                           </div>
                         </div>
@@ -437,7 +402,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             '#ff9955', '#9955ff', '#55ff99', '#99ff55', '#ff55aa', '#55aaff'].map((color) => (
                             <button
                               key={color}
-                              className="w-full aspect-square rounded-sm border border-zinc-700 hover:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              className="w-full aspect-square hover:opacity-80 focus:outline-none"
                               style={{ backgroundColor: color }}
                               onClick={() => handleUpdateSetting(activeSection, 'color', color)}
                               aria-label={`Select color ${color}`}
@@ -449,9 +414,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-2">
+                <div className="h-full flex flex-col items-center justify-center text-zinc-400">
                   <Settings className="w-8 h-8" />
-                  <p className="text-sm">Select a category to adjust settings</p>
+                  <p className="text-sm">Select a category</p>
                 </div>
               )}
             </div>
