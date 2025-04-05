@@ -39,24 +39,68 @@ interface TouchSettings {
 }
 
 interface PresetData {
+  version?: number; // Optional version field for backward compatibility
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
     goo: GooSettings;
-    touch: TouchSettings;
+    touch?: TouchSettings; // Make touch settings optional
   };
 }
 
+// Default values for backward compatibility
+const DEFAULT_SETTINGS: PresetData['settings'] = {
+  layer1: {
+    spacing: 30,
+    size: 8,
+    rotation: 0,
+    color: '#ffffff'
+  },
+  layer2: {
+    spacing: 30,
+    size: 8,
+    rotation: 45,
+    color: '#ffffff'
+  },
+  goo: {
+    enabled: false,
+    blur: 8,
+    threshold: 128,
+    prePixelate: 1,
+    postPixelate: 1
+  },
+  touch: {
+    enablePinchZoom: true,
+    enablePinchRotate: true
+  }
+};
+
 // Main encoding function - simply stringify and base64 encode
 export const encodePreset = (settings: PresetData['settings']): string => {
+  // Add version information to the preset
+  const presetData: PresetData = {
+    version: 1,
+    settings
+  };
+  
   // Take the settings, convert to JSON string, then base64 encode
-  const jsonString = JSON.stringify(settings);
+  const jsonString = JSON.stringify(presetData);
   
   // Base64 encode and make URL safe
   return btoa(jsonString)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+};
+
+// Helper function to merge settings with defaults
+const mergeWithDefaults = (settings: Partial<PresetData['settings']>): PresetData['settings'] => {
+  return {
+    layer1: { ...DEFAULT_SETTINGS.layer1, ...settings.layer1 },
+    layer2: { ...DEFAULT_SETTINGS.layer2, ...settings.layer2 },
+    goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo },
+    touch: { ...DEFAULT_SETTINGS.touch, ...settings.touch }
+  };
 };
 
 // Main decoding function - base64 decode and parse JSON
@@ -72,14 +116,18 @@ export const decodePreset = (encoded: string): PresetData['settings'] => {
     const jsonString = atob(base64);
     
     // Parse JSON into settings object
-    const settings = JSON.parse(jsonString);
+    const data = JSON.parse(jsonString) as PresetData;
     
-    // Validate the settings structure
-    if (!settings.layer1 || !settings.layer2 || !settings.goo) {
-      throw new Error('Invalid preset format: missing required settings');
+    // Handle different versions of presets
+    if (data.version === undefined) {
+      // Version 0 (legacy) - settings are at the root level
+      return mergeWithDefaults(data as any);
+    } else if (data.version === 1) {
+      // Version 1 - settings are nested under settings property
+      return mergeWithDefaults(data.settings);
+    } else {
+      throw new Error('Unsupported preset version');
     }
-    
-    return settings;
   } catch (error) {
     console.error('Error decoding preset:', error);
     throw new Error('Failed to load preset: Invalid format');
