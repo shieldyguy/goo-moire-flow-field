@@ -55,17 +55,17 @@ const Index = () => {
       try {
         const decodedSettings = decodePreset(preset);
         setSettings(decodedSettings);
-        toast({
+        /*toast({
           title: "Preset Loaded",
           description: "Successfully loaded preset from URL",
-        });
+        });*/
       } catch (error) {
         console.error('Failed to load preset:', error);
-        toast({
+        /*toast({
           title: "Failed to Load Preset",
           description: "The preset URL appears to be invalid or corrupted",
           variant: "destructive",
-        });
+        });*/
       }
     }
   }, [toast]);
