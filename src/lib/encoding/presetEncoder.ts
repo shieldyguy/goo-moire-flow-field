@@ -12,7 +12,8 @@ const BITS = {
     ENABLED: 1,    // Boolean
     BLUR: 8,       // 0-255
     THRESHOLD: 8,  // 0-255
-    RESOLUTION: 8  // 0-255 (percentage)
+    PRE_PIXELATE: 8, // 0-255
+    POST_PIXELATE: 8  // 0-255
   }
 } as const;
 
@@ -28,7 +29,8 @@ interface GooSettings {
   enabled: boolean;
   blur: number;
   threshold: number;
-  resolution: number;
+  prePixelate: number;
+  postPixelate: number;
 }
 
 interface PresetData {

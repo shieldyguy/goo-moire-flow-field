@@ -37,7 +37,8 @@ const Index = () => {
       enabled: false,
       blur: 8,
       threshold: 128,
-      resolution: 100
+      prePixelate: 1,
+      postPixelate: 1
     }
   });
 

@@ -146,7 +146,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const menuItems = [
     { id: 'layer1', label: 'Layer 1', color: 'from-pink-500 to-rose-600' },
     { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
-    { id: 'goo', label: 'Goo Effect', color: 'from-emerald-500 to-teal-600' },
+    { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
   ];
 
   // Animation for menu items
@@ -291,6 +291,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <>
                           <div>
                             <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">Pre-Pixelate</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.prePixelate}</span>
+                            </div>
+                            <Slider
+                              value={[settings.goo.prePixelate]}
+                              min={1}
+                              max={100}
+                              step={1}
+                              onValueChange={(value) => handleUpdateSetting('goo', 'prePixelate', value[0])}
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">Blur</label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.blur}</span>
                             </div>
@@ -316,18 +330,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
                             />
                           </div>
-                          
+
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Resolution</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.resolution}%</span>
+                              <label className="text-sm text-zinc-200">Post-Pixelate</label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.postPixelate}</span>
                             </div>
                             <Slider
-                              value={[settings.goo.resolution]}
-                              min={10}
+                              value={[settings.goo.postPixelate]}
+                              min={1}
                               max={100}
-                              step={5}
-                              onValueChange={(value) => handleUpdateSetting('goo', 'resolution', value[0])}
+                              step={1}
+                              onValueChange={(value) => handleUpdateSetting('goo', 'postPixelate', value[0])}
                             />
                           </div>
                         </>

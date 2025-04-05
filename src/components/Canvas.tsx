@@ -22,8 +22,9 @@ interface CanvasProps {
     goo: {
       blur: number;
       threshold: number;
-      resolution: number;
       enabled: boolean;
+      prePixelate: number;
+      postPixelate: number;
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;

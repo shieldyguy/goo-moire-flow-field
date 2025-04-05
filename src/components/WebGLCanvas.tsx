@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from "react";
 
 interface WebGLCanvasProps {
@@ -21,7 +20,8 @@ interface WebGLCanvasProps {
       enabled: boolean;
       blur: number;
       threshold: number;
-      resolution: number;
+      prePixelate: number;
+      postPixelate: number;
     };
   };
   offset: {
@@ -100,15 +100,13 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
         
         // Apply WebGL filter
         const filter = new window.WebGLImageFilter();
-        
-        // Apply blur based on settings
-        filter.addFilter("blur", settings.goo.blur);
-        
-        // Apply threshold effect (simulated with brightness/contrast)
-        const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range
+
+        filter.addFilter("pixelate", settings.goo.prePixelate);
+        filter.addFilter("blur", settings.goo.blur);    
+        const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range     
         filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);
-        filter.addFilter("pixelate", 1);
+        filter.addFilter("pixelate", settings.goo.postPixelate);
         
         // Apply the filter and draw back to original canvas
         const result = filter.apply(tempCanvas);
