@@ -1,12 +1,5 @@
 import React, { useRef, useEffect } from "react";
 
-// Add a declaration for the WebGLImageFilter
-declare global {
-  interface Window {
-    WebGLImageFilter: any;
-  }
-}
-
 interface WebGLCanvasProps {
   width: number;
   height: number;
