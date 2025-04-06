@@ -1,97 +1,87 @@
-# Rotation Gesture Implementation Plan
+# Interact.js Implementation Plan
 
 ## Goals
-- Implement two-finger rotation gestures to control layer2 rotation
-- Maintain simultaneous pan + rotation capability
+- Replace Hammer.js with Interact.js for all gesture handling
+- Implement drag, double-tap, rotation, and pinch gestures
 - Keep rotation state in sync with control panel
 
-## Architecture Overview
+## Overview of Changes
 
-### Component Relationships
-1. **Parent Component**
-   - Holds the source of truth (`settings` object)
-   - Passes settings to WebGLCanvas and ControlPanel
-   - Will connect GestureHandler events to settings updates
+### 1. Remove Hammer.js Dependencies
+- Delete GestureHandler.tsx component that uses Hammer.js
+- Remove Hammer.js type definitions
+- Clean up any Hammer.js-specific code in Canvas component
 
-2. **WebGLCanvas.tsx**
-   - Renders layers using rotation value from settings
-   - Already handles offset for layer2
+### 2. Integrate Interact.js
 
-3. **GestureHandler.tsx**
-   - Detects pan and rotation gestures
-   - Provides callbacks to parent component
+#### Installation
+```bash
+npm install interactjs
+```
 
-4. **ControlPanel.tsx**
-   - Provides UI for changing rotation
-   - Contains enablePinchRotate toggle
-   - Will stay in sync with gesture-based rotation
+#### TypeScript Integration
+- Add proper TypeScript typings (already included in the package)
 
-## Implementation Details
+### 3. New Architecture
 
-### Rotation Data Flow
-1. When rotation gesture starts:
-   - Store the initial layer2 rotation value
-   - Call `onRotateStart` handler
+#### Direct Integration in Canvas Component
+- Apply Interact.js directly to the interaction layer in Canvas.tsx
+- Handle all gestures within Canvas.tsx without a wrapper component
+- Connect gesture events directly to state updates
 
-2. During rotation:
-   - Calculate new rotation = (initial rotation + gesture delta)
-   - Ensure value stays in 0-360° range using modulo
-   - Update settings.layer2.rotation
-   - This triggers WebGLCanvas re-render
-   - Control panel reflects the new value
+### Implementation Steps
 
-3. When rotation ends:
-   - Call `onRotateEnd` handler
-   - No special cleanup needed
+## Step 1: Remove Hammer.js
+1. Delete the GestureHandler.tsx component
+2. Remove Hammer.js types from global.d.ts
+3. Remove references to GestureHandler in Canvas.tsx
 
-### Pan + Rotation Coordination
-1. Both gestures work simultaneously:
-   - Pan updates offset.x and offset.y
-   - Rotation updates layer2.rotation
-   - Both can happen during the same multi-touch gesture
+## Step 2: Implement Interact.js Gestures
 
-2. No artificial isolation:
-   - Allow natural, fluid manipulation like Procreate/Illustrator
-   - No threshold or prioritization between gestures
+### Basic Setup
+1. Import Interact.js in Canvas.tsx
+2. Initialize interact on the interaction layer div
+3. Implement the base interactable object
 
-### User Preferences
-1. Respect enablePinchRotate setting:
-   - Check settings.touch.enablePinchRotate before applying rotation
-   - If disabled, ignore rotation component of gestures
-   - Pan should still work regardless
+### Drag Implementation
+1. Set up draggable functionality with interact
+2. Connect drag events to update offset state
+3. Ensure drag throttling is applied for performance
 
-2. Manual + gesture interaction:
-   - Users can adjust via control panel slider or gestures
-   - Changes are reflected in both places
+### Double-Tap Implementation
+1. Set up tap gesture recognition
+2. Configure for double-tap detection
+3. Connect to menu opening/closing functionality
 
-### Technical Considerations
+### Rotation Implementation
+1. Set up rotation gesture recognition
+2. Store initial rotation angle when gesture starts
+3. Update rotation value in settings during gesture
+4. Apply proper angle normalization (0-360°)
+5. Respect the enablePinchRotate setting
 
-1. Angle handling:
-   - Keep angles in 0-360° range for consistency with control panel
-   - Handle wraparound at 0°/360° boundary smoothly
-   - Use relative rotation (delta from start) for natural feel
+### Gesture Coordination
+1. Ensure multiple gestures can happen simultaneously
+2. Configure proper event listener options
+3. Handle touch vs mouse events appropriately
 
-2. Frame rate:
-   - Maintain existing 12fps rendering
-   - Don't introduce additional render cycles
+## Step 3: Integration with Existing UI
+1. Ensure rotation updates are reflected in control panel
+2. Update visual feedback for gestures 
+3. Maintain the same 12fps throttling for performance
 
-## Implementation Steps
+## Implementation Notes
 
-1. Add rotation state tracking to parent component:
-   - Add rotation start/change/end handlers
-   - Track initial rotation state
+### Angle Handling
+- Use proper angle normalization for 0-360° range
+- Handle rotation smoothly when crossing boundaries
+- Apply relative rotation for natural gesture feel
 
-2. Connect gesture events:
-   - Pass handlers to GestureHandler
-   - Update settings when rotation occurs
-   - Check enablePinchRotate before applying
+### Performance Considerations
+- Maintain existing throttling approach
+- Use efficient event handlers
 
-3. Test rotation + pan combinations:
-   - Verify simultaneous gestures work smoothly
-   - Check that control panel stays in sync
-   - Verify enabling/disabling via settings works
-
-## Future Enhancements (Not in current scope)
-- Pinch/zoom integration
-- Enhanced visual feedback for gestures
-- Additional gesture types 
+### Future Work (Out of Scope)
+- Additional gesture types
+- Enhanced visual feedback
+- Advanced gesture configurations 
