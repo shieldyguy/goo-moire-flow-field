@@ -71,6 +71,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const interactionLayerRef = useRef<HTMLDivElement>(null);
   const initialOffsetRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
+  const initialLayerRotationRef = useRef(0);
   
   // Utilities
   const { toast } = useToast();
@@ -112,9 +113,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (!interactionElement) return;
 
     // Store data for gesture tracking
-    let gestureStartAngle = 0;
-    let gestureStartRotation = 0;
-    let gestureStartScale = 1;
     let initialSpacing = settings.layer2.spacing;
     let initialSize = settings.layer2.size;
     let lastTapTime = 0;
@@ -126,7 +124,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     let dx = 0;
     let dy = 0;
 
-    // Setup the interactable
+    // Setup the interactable with both draggable and gesturable
     const interactable = interact(interactionElement)
       // Enable dragging
       .draggable({
@@ -146,12 +144,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
             setIsDragging(true);
           },
           move(event) {
-            // Accumulate the movement
-            dx += event.dx;
-            dy += event.dy;
-            
-            // Update directly without throttling - throttling happens in renderer
+            // Only process drag if we're not in a gesture
             if (isDraggingRef.current && !isRotating) {
+              // Accumulate the movement
+              dx += event.dx;
+              dy += event.dy;
+              
+              // Update offset directly
               setOffset({
                 x: initialOffsetRef.current.x + dx,
                 y: initialOffsetRef.current.y + dy
@@ -161,6 +160,66 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
           end() {
             isDraggingRef.current = false;
             setIsDragging(false);
+          }
+        }
+      })
+      // Add gesturable for rotation and pinch
+      .gesturable({
+        listeners: {
+          start(event) {
+            // Store rotation state for the gesture
+            const currentRotation = settings.layer2.rotation;
+            setIsRotating(true);
+            
+            // Remember initial settings values
+            initialLayerRotationRef.current = currentRotation;
+            initialSpacing = settings.layer2.spacing;
+            initialSize = settings.layer2.size;
+          },
+          move(event) {
+            // Process rotation if enabled
+            if (settings.touch?.enablePinchRotate) {
+              // Per docs: Use event.da (delta angle) for the change in angle since the last event
+              let newRotation = settings.layer2.rotation + event.da;
+              
+              // Normalize the rotation to 0-360 range
+              newRotation = newRotation % 360;
+              if (newRotation < 0) newRotation += 360;
+              
+              // Update settings directly
+              setSettings(prev => ({
+                ...prev,
+                layer2: {
+                  ...prev.layer2,
+                  rotation: newRotation
+                }
+              }));
+            }
+            
+            // Handle pinch zoom if enabled
+            if (settings.touch?.enablePinchZoom) {
+              // Per docs: Use event.scale directly or event.ds for change in scale since last event
+              // We'll use ds for incremental changes
+              const newScale = Math.min(Math.max(event.scale, 0.5), 2.0);
+              
+              // Update settings directly
+              setSettings(prev => ({
+                ...prev,
+                layer2: {
+                  ...prev.layer2,
+                  spacing: initialSpacing * newScale,
+                  size: initialSize * newScale
+                }
+              }));
+            }
+          },
+          end() {
+            // Store final values as new initial values
+            initialLayerRotationRef.current = settings.layer2.rotation;
+            initialSpacing = settings.layer2.spacing;
+            initialSize = settings.layer2.size;
+            
+            setIsRotating(false);
           }
         }
       });
@@ -185,83 +244,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       }
       
       lastTapTime = currentTime;
-    });
-
-    // Setup gesture recognition for rotation and pinch
-    interactable.gesturable({
-      listeners: {
-        start(event) {
-          // When starting a gesture, pause any ongoing drag
-          if (isDraggingRef.current) {
-            // Save the current drag position before starting rotation
-            initialOffsetRef.current = { ...offset };
-          }
-          
-          // Prevent drag during gestures
-          isDraggingRef.current = false;
-          setIsDragging(false);
-          
-          // Store initial values for gesture
-          if (settings.touch?.enablePinchRotate) {
-            setIsRotating(true);
-            setInitialLayerRotation(settings.layer2.rotation);
-            gestureStartAngle = event.angle;
-            gestureStartRotation = settings.layer2.rotation;
-          }
-          
-          // Store initial values for pinch zoom
-          if (settings.touch?.enablePinchZoom) {
-            gestureStartScale = event.scale;
-            initialSpacing = settings.layer2.spacing;
-            initialSize = settings.layer2.size;
-          }
-        },
-        move(event) {
-          // Handle rotation if enabled - direct updates without throttling
-          if (isRotating && settings.touch?.enablePinchRotate) {
-            // Calculate rotation delta
-            const deltaAngle = event.angle - gestureStartAngle;
-            
-            // Calculate new rotation value
-            const newRotation = (gestureStartRotation + deltaAngle) % 360;
-            const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
-            
-            // Update settings directly
-            setSettings(prev => ({
-              ...prev,
-              layer2: {
-                ...prev.layer2,
-                rotation: normalizedRotation
-              }
-            }));
-          }
-          
-          // Handle pinch zoom if enabled - direct updates without throttling
-          if (settings.touch?.enablePinchZoom) {
-            // Calculate scale relative to gesture start
-            const relativeScale = event.scale / gestureStartScale;
-            
-            // Limit scale between 0.5 and 2.0
-            const clampedScale = Math.min(Math.max(relativeScale, 0.5), 2.0);
-            
-            // Update settings directly
-            setSettings(prev => ({
-              ...prev,
-              layer2: {
-                ...prev.layer2,
-                spacing: initialSpacing * clampedScale,
-                size: initialSize * clampedScale
-              }
-            }));
-          }
-        },
-        end() {
-          setIsRotating(false);
-          
-          // Allow dragging to resume after gesture ends
-          // but don't automatically start dragging
-        }
-      }
     });
 
     // Manually handle double-click for desktop browsers
@@ -301,7 +283,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         ref={interactionLayerRef}
         className="absolute inset-0 interaction-layer"
         style={{
-          touchAction: 'none', // Disable browser handling of gestures
+          touchAction: 'none', // Disable browser handling of all gestures
           cursor: isDragging ? 'grabbing' : 'grab', // Visual feedback for dragging
           zIndex: 10, // Ensure it's above other elements but below UI
           userSelect: 'none', // Prevent text selection during interactions
@@ -321,10 +303,15 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         />
       )}
 
-      {/* Visual indicator for rotation (optional) */}
+      {/* Visual indicator for gestures */}
       {isRotating && (
         <div className="fixed top-4 right-4 bg-black/80 text-white px-4 py-2 rounded-md font-bold z-50">
           Rotating
+        </div>
+      )}
+      {isDragging && !isRotating && (
+        <div className="fixed top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-md font-bold z-50">
+          Dragging
         </div>
       )}
     </div>
