@@ -162,8 +162,7 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
         filter.addFilter("pixelate", settings.goo.prePixelate);
         filter.addFilter("blur", settings.goo.blur); 
         filter.addFilter("blur", settings.goo.blur); 
-        filter.addFilter("blur", settings.goo.blur);
-        filter.addFilter("blur", settings.goo.blur);  
+        filter.addFilter("blur", settings.goo.blur); 
         const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range     
         filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);

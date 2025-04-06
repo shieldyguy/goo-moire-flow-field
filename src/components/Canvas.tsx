@@ -1,9 +1,46 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import ControlPanel from './ControlPanel';
 import WebGLCanvas from './WebGLCanvas';
 import { encodePreset } from '@/lib/encoding/presetEncoder';
 import GestureHandler from './GestureHandler';
+
+// Custom hook to throttle a function to limit how often it's called
+// defaultFps = 60 means the function can be called at most once every ~16.6ms
+const useThrottle = <T extends (...args: any[]) => any>(
+  fn: T, 
+  fps: number = 12
+): T => {
+  const lastCall = useRef<number>(0);
+  const timeout = useRef<NodeJS.Timeout | null>(null);
+  const lastArgs = useRef<any[]>([]);
+
+  // Calculate throttle delay in ms based on fps
+  const throttleMs = 1000 / fps;
+
+  return useCallback(
+    ((...args: any[]) => {
+      const now = Date.now();
+      lastArgs.current = args;
+
+      // If enough time has passed since last call, execute immediately
+      if (now - lastCall.current >= throttleMs) {
+        lastCall.current = now;
+        return fn(...args);
+      }
+
+      // Otherwise, set a timeout to execute after the throttle period
+      if (timeout.current === null) {
+        timeout.current = setTimeout(() => {
+          lastCall.current = Date.now();
+          timeout.current = null;
+          fn(...lastArgs.current);
+        }, throttleMs - (now - lastCall.current));
+      }
+    }) as T,
+    [fn, throttleMs]
+  );
+};
 
 interface CanvasProps {
   // Default values for our parameters
@@ -70,6 +107,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [initialLayerRotation, setInitialLayerRotation] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
   const interactionLayerRef = useRef<HTMLDivElement>(null);
+  
+  // Adjust this number to change the max frame rate (higher = smoother, lower = more performance)
+  const throttledSetOffset = useThrottle(setOffset, 15);
 
   // Check WebGL support
   useEffect(() => {
@@ -320,7 +360,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
 
-    setOffset({
+    throttledSetOffset({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y
     });
@@ -376,7 +416,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       const deltaX = touch.clientX - dragStartRef.current.x;
       const deltaY = touch.clientY - dragStartRef.current.y;
       
-      setOffset({
+      throttledSetOffset({
         x: deltaX,
         y: deltaY
       });
@@ -411,7 +451,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handlePan = (deltaX: number, deltaY: number) => {
-    setOffset(prev => ({
+    throttledSetOffset(prev => ({
       x: prev.x + deltaX,
       y: prev.y + deltaY
     }));
