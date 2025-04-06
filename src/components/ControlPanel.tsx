@@ -148,6 +148,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
     { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
     { id: 'touch', label: 'Touch', color: 'from-purple-500 to-indigo-600' },
+    { id: 'lfo', label: 'LFO', color: 'from-amber-500 to-amber-600' },
   ];
 
   // Animation for menu items
@@ -163,6 +164,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // Update settings with new values
   const handleUpdateSetting = (section: string, property: string, value: any) => {
+    // Track the last changed parameter for LFO target
+    if (section !== 'lfo' && property !== 'lastChangedParam') {
+      setSettings((prev: any) => ({
+        ...prev,
+        lfo: {
+          ...prev.lfo,
+          lastChangedParam: {
+            section,
+            property
+          }
+        }
+      }));
+    }
+    
     setSettings((prev: any) => ({
       ...prev,
       [section]: {
@@ -198,6 +213,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         threshold: 128,
         prePixelate: 1,
         postPixelate: 1
+      },
+      touch: {
+        enablePinchZoom: true,
+        enablePinchRotate: true
+      },
+      lfo: {
+        enabled: false,
+        targetSection: 'layer1',
+        targetProperty: 'rotation',
+        rate: 0.1,
+        amount: 10,
+        lastChangedParam: {
+          section: 'layer1',
+          property: 'rotation'
+        }
       }
     });
 
@@ -224,6 +254,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       };
     }
   };
+
+  // Map slider value to logarithmic scale
+  const expScale = (value, min, max) => {
+    return min * Math.pow(max/min, value);
+  }
 
   return (
     <>
@@ -256,7 +291,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           ? "bg-teal-800/70 text-teal-50"
                           : id === 'goo'
                             ? "bg-rose-900/70 text-rose-50"
-                            : "bg-purple-900/70 text-purple-50"
+                            : id === 'lfo'
+                              ? "bg-amber-800/80 text-amber-50 hover:bg-amber-700/80"
+                              : "bg-purple-900/70 text-purple-50"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                   onClick={() => setActiveSection(id)}
@@ -267,7 +304,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               
               {/* Export button */}
               <animated.button
-                style={menuItemSprings[3]}
+                style={menuItemSprings[4]}
                 className="mt-auto py-2 px-3 text-left bg-amber-800/80 text-amber-50 hover:bg-amber-700/80 transition-all focus:outline-none"
                 onClick={handleExport}
               >
@@ -374,6 +411,78 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           onCheckedChange={(checked) => handleUpdateSetting('touch', 'enablePinchRotate', checked)}
                           className="data-[state=checked]:bg-purple-700"
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeSection === 'lfo' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-zinc-200">Enable LFO</label>
+                        <Switch
+                          checked={settings.lfo?.enabled ?? false}
+                          onCheckedChange={(checked) => handleUpdateSetting('lfo', 'enabled', checked)}
+                          className="data-[state=checked]:bg-amber-700"
+                        />
+                      </div>
+                      
+                      <div className="mt-2 p-2 bg-zinc-900/50 rounded-sm">
+                        <p className="text-sm text-zinc-300 mb-1">
+                          Modulating: <span className="font-semibold">{`${settings.lfo.lastChangedParam.section}.${settings.lfo.lastChangedParam.property}`}</span>
+                          <span className="ml-1 text-xs opacity-70">
+                            {settings.lfo.lastChangedParam.property === 'rotation' && '(degrees)'}
+                            {settings.lfo.lastChangedParam.property === 'spacing' && '(px)'}
+                            {settings.lfo.lastChangedParam.property === 'size' && '(px)'}
+                            {(settings.lfo.lastChangedParam.property === 'blur' || 
+                              settings.lfo.lastChangedParam.property === 'threshold' || 
+                              settings.lfo.lastChangedParam.property === 'prePixelate' || 
+                              settings.lfo.lastChangedParam.property === 'postPixelate') && '(value)'}
+                          </span>
+                        </p>                    
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between">
+                          <label className="text-sm text-zinc-200">Rate (Hz)</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.lfo.rate.toFixed(3)} Hz</span>
+                        </div>
+                        <Slider
+                          value={[Math.log(settings.lfo.rate / 0.001) / Math.log(5000)]}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onValueChange={(value) => {
+                            const logRate = 0.001 * Math.pow(5000, value[0]);
+                            handleUpdateSetting('lfo', 'rate', logRate);
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between">
+                          <label className="text-sm text-zinc-200">Amount</label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                            {settings.lfo.amount}
+                            <span className="opacity-70 ml-1">
+                              {settings.lfo.lastChangedParam.property === 'rotation' && '°'}
+                              {settings.lfo.lastChangedParam.property === 'spacing' && 'px'}
+                              {settings.lfo.lastChangedParam.property === 'size' && 'px'}
+                            </span>
+                          </span>
+                        </div>
+                        <Slider
+                          value={[settings.lfo.amount]}
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          onValueChange={(value) => handleUpdateSetting('lfo', 'amount', value[0])}
+                        />
+                        <p className="text-xs text-zinc-400 mt-1">
+                          Range: ±{settings.lfo.amount}{' '}
+                          {settings.lfo.lastChangedParam.property === 'rotation' ? '°' : 
+                           settings.lfo.lastChangedParam.property === 'spacing' || 
+                           settings.lfo.lastChangedParam.property === 'size' ? 'px' : ''}
+                        </p>
                       </div>
                     </div>
                   )}
