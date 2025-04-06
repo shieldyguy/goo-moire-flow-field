@@ -24,41 +24,55 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
   useEffect(() => {
     if (!containerRef.current || !window.Hammer) return;
     
-    // Simple Hammer instance
-    const hammer = new window.Hammer(containerRef.current);
+    // Create a manager instance instead of a direct Hammer instance
+    const hammer = new window.Hammer.Manager(containerRef.current);
     
-    // Enable necessary recognizers
-    hammer.get('pan').set({ direction: window.Hammer.DIRECTION_ALL });
-    hammer.get('pinch').set({ enable: true });
-    hammer.get('rotate').set({ enable: true });
+    // Create recognizers
+    const pan = new window.Hammer.Pan({ 
+      direction: window.Hammer.DIRECTION_ALL,
+      threshold: 0 // Reduce threshold for more immediate response
+    });
+    
+    const rotate = new window.Hammer.Rotate({
+      threshold: 0 // Reduce threshold for more responsive rotation
+    });
+    
+    const pinch = new window.Hammer.Pinch();
+    
+    // Add the rotate and pinch recognizers, which should recognize simultaneously
+    const pinchRotate = new window.Hammer.Pinch();
+    pinchRotate.recognizeWith(rotate);
+    
+    // Add the pan recognizer
+    hammer.add(pan);
+    
+    // Add the pinch-rotate recognizers
+    hammer.add([pinchRotate, rotate]);
     
     // Add doubletap recognizer
     const doubletap = new window.Hammer.Tap({ event: 'doubletap', taps: 2 });
     hammer.add(doubletap);
     
-    // Simple multi-touch tracking
+    // Track multi-touch state
     let isMultiTouch = false;
     
     hammer.on('hammer.input', function(e) {
-      // Track if multiple fingers are touching
       isMultiTouch = e.pointers.length > 1;
     });
     
-    // Handle pan
+    // Handle pan - works with single or multi-touch
     hammer.on('pan', (e) => {
-      if (!isMultiTouch) {
-        onPan(e.deltaX, e.deltaY);
-      }
+      onPan(e.deltaX, e.deltaY);
     });
     
-    // Handle pinch
+    // Handle pinch - only with multi-touch
     hammer.on('pinch', (e) => {
       if (isMultiTouch) {
         onPinch(e.scale);
       }
     });
     
-    // Handle rotation
+    // Handle rotation - only with multi-touch
     hammer.on('rotatestart', () => {
       if (isMultiTouch && onRotateStart) {
         onRotateStart();
@@ -68,6 +82,7 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     hammer.on('rotate', (e) => {
       if (isMultiTouch) {
         // Pass the rotation value in degrees
+        // This is the rotation in degrees, relative to the starting position
         onRotate(e.rotation);
       }
     });
@@ -78,7 +93,7 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
       }
     });
     
-    // Handle double tap
+    // Handle double tap - only with single touch
     hammer.on('doubletap', (e) => {
       if (!isMultiTouch) {
         onDoubleTap(e.center.x, e.center.y);

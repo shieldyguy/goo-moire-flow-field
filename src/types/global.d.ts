@@ -1,15 +1,31 @@
 interface HammerManager {
   get(recognizer: string): any;
-  add(recognizer: any): void;
+  add(recognizer: any | any[]): void;
   on(event: string, handler: (event: any) => void): void;
   destroy(): void;
+}
+
+interface HammerRecognizer {
+  recognizeWith(otherRecognizer: HammerRecognizer): HammerRecognizer;
 }
 
 interface HammerStatic {
   new(element: HTMLElement): HammerManager;
   DIRECTION_ALL: number;
   Tap: {
-    new(options: { event: string; taps: number }): any;
+    new(options: { event: string; taps: number }): HammerRecognizer;
+  };
+  Manager: {
+    new(element: HTMLElement, options?: any): HammerManager;
+  };
+  Pan: {
+    new(options?: { direction?: number; threshold?: number }): HammerRecognizer;
+  };
+  Rotate: {
+    new(options?: { threshold?: number }): HammerRecognizer;
+  };
+  Pinch: {
+    new(options?: any): HammerRecognizer;
   };
 }
 

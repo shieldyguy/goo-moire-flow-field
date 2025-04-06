@@ -495,6 +495,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (!settings.touch?.enablePinchRotate || !isRotating) return;
     
     // Calculate new rotation value - add rotation delta to initial rotation
+    // Hammer.js rotation is in degrees relative to the start position
+    // We need to normalize to the 0-360 range
     const newRotation = (initialLayerRotation + rotationDegrees) % 360;
     
     // Normalize to 0-360 range
