@@ -60,17 +60,22 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     
     // Handle rotation
     hammer.on('rotatestart', () => {
-      onRotateStart?.();
+      if (isMultiTouch && onRotateStart) {
+        onRotateStart();
+      }
     });
     
     hammer.on('rotate', (e) => {
       if (isMultiTouch) {
+        // Pass the rotation value in degrees
         onRotate(e.rotation);
       }
     });
     
     hammer.on('rotateend', () => {
-      onRotateEnd?.();
+      if (onRotateEnd) {
+        onRotateEnd();
+      }
     });
     
     // Handle double tap

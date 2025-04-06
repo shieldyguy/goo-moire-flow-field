@@ -494,11 +494,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleRotate = (rotationDegrees: number) => {
     if (!settings.touch?.enablePinchRotate || !isRotating) return;
     
-    // Calculate new rotation value
+    // Calculate new rotation value - add rotation delta to initial rotation
     const newRotation = (initialLayerRotation + rotationDegrees) % 360;
+    
+    // Normalize to 0-360 range
     const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
     
-    // Update layer2 rotation
+    // Update layer2 rotation through settings
     setSettings(prev => ({
       ...prev,
       layer2: {

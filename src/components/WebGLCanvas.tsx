@@ -88,6 +88,8 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
     const centerX = width / 2;
     const centerY = height / 2;
     ctx.translate(centerX + offsetX, centerY + offsetY);
+    
+    // Apply rotation transformation
     ctx.rotate((layer.rotation * Math.PI) / 180);
 
     const spacing = layer.spacing * dpr; // Scale spacing with DPR
