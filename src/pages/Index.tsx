@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import Canvas from '@/components/Canvas';
-import { decodePreset } from '@/lib/encoding/presetEncoder';
+import React, { useState, useEffect } from "react";
+import Canvas from "@/components/Canvas";
+import { decodePreset } from "@/lib/encoding/presetEncoder";
 import { useToast } from "@/components/ui/use-toast";
 
 // Define types to match presetEncoder
-type PatternType = 'dots' | 'lines' | 'squares';
+type PatternType = "dots" | "lines" | "squares";
 
 interface LayerSettings {
   spacing: number;
@@ -42,7 +42,7 @@ const generateRandomColor = () => {
   const h = Math.floor(Math.random() * 360); // Hue: 0-359
   const s = 40 + Math.floor(Math.random() * 30); // Saturation: 40-69%
   const l = 40 + Math.floor(Math.random() * 20); // Lightness: 40-59%
-  
+
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
@@ -51,45 +51,45 @@ const Index = () => {
   // Generate random colors for initial load
   const initialColor1 = generateRandomColor();
   const initialColor2 = generateRandomColor();
-  
+
   // Default settings with random colors
   const [settings, setSettings] = useState<AppSettings>({
     layer1: {
-      spacing: 30,
-      size: 8,
+      spacing: 33,
+      size: 19,
       rotation: 0,
       color: initialColor1,
-      type: 'dots',
+      type: "dots",
       numShapes: 3,
-      strokeWidth: 1
+      strokeWidth: 1,
     },
     layer2: {
-      spacing: 30,
-      size: 8,
-      rotation: 45,
+      spacing: 35,
+      size: 20.5,
+      rotation: 0,
       color: initialColor2,
-      type: 'dots',
+      type: "dots",
       numShapes: 3,
-      strokeWidth: 1
+      strokeWidth: 1,
     },
     goo: {
-      enabled: false,
-      blur: 8,
-      threshold: 128,
+      enabled: true,
+      blur: 6,
+      threshold: 41,
       prePixelate: 1,
-      postPixelate: 1
+      postPixelate: 1,
     },
     touch: {
       enablePinchZoom: true,
-      enablePinchRotate: true
-    }
+      enablePinchRotate: true,
+    },
   });
 
   // Handle URL parameters on load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const preset = urlParams.get('p');
-    
+    const preset = urlParams.get("p");
+
     if (preset) {
       try {
         const decodedSettings = decodePreset(preset);
@@ -99,25 +99,31 @@ const Index = () => {
           // Add touch settings if they're missing
           touch: decodedSettings.touch || {
             enablePinchZoom: true,
-            enablePinchRotate: true
-          }
+            enablePinchRotate: true,
+          },
         } as AppSettings;
-        
+
         // Ensure pattern types are valid
-        if (finalSettings.layer1.type && !['dots', 'lines', 'squares'].includes(finalSettings.layer1.type)) {
-          finalSettings.layer1.type = 'dots';
+        if (
+          finalSettings.layer1.type &&
+          !["dots", "lines", "squares"].includes(finalSettings.layer1.type)
+        ) {
+          finalSettings.layer1.type = "dots";
         }
-        if (finalSettings.layer2.type && !['dots', 'lines', 'squares'].includes(finalSettings.layer2.type)) {
-          finalSettings.layer2.type = 'dots';
+        if (
+          finalSettings.layer2.type &&
+          !["dots", "lines", "squares"].includes(finalSettings.layer2.type)
+        ) {
+          finalSettings.layer2.type = "dots";
         }
-        
+
         setSettings(finalSettings);
         /*toast({
           title: "Preset Loaded",
           description: "Successfully loaded preset from URL",
         });*/
       } catch (error) {
-        console.error('Failed to load preset:', error);
+        console.error("Failed to load preset:", error);
         toast({
           title: "Failed to Load Preset",
           description: "The preset URL appears to be invalid or corrupted",

@@ -1,12 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useSpring, animated, config } from '@react-spring/web';
+import React, { useState, useEffect, useRef } from "react";
+import { useSpring, animated, config } from "@react-spring/web";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { X, RotateCcw, Share2, Settings, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  X,
+  RotateCcw,
+  Share2,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-import { encodePreset } from '@/lib/encoding/presetEncoder';
+import { encodePreset } from "@/lib/encoding/presetEncoder";
 
 // Function to generate random colors
 const generateRandomColor = () => {
@@ -14,7 +21,7 @@ const generateRandomColor = () => {
   const h = Math.floor(Math.random() * 360); // Hue: 0-359
   const s = 40 + Math.floor(Math.random() * 30); // Saturation: 40-69%
   const l = 40 + Math.floor(Math.random() * 20); // Lightness: 40-59%
-  
+
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
@@ -29,7 +36,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   position,
   onClose,
   settings,
-  setSettings
+  setSettings,
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const controllerRef = useRef<HTMLDivElement>(null);
@@ -39,9 +46,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Main panel animation
   const panelSpring = useSpring({
     opacity: 1,
-    transform: 'scale(1)',
-    from: { opacity: 0, transform: 'scale(0.9)' },
-    config: config.wobbly
+    transform: "scale(1)",
+    from: { opacity: 0, transform: "scale(0.9)" },
+    config: config.wobbly,
   });
 
   // Handle export functionality
@@ -49,19 +56,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     try {
       const encoded = encodePreset(settings);
       const url = `${window.location.origin}${window.location.pathname}?p=${encoded}`;
-      
-      navigator.clipboard.writeText(url).then(() => {
-        toast({
-          title: "Preset Exported",
-          description: "URL copied to clipboard!",
+
+      navigator.clipboard
+        .writeText(url)
+        .then(() => {
+          toast({
+            title: "Preset Exported",
+            description: "URL copied to clipboard!",
+          });
+        })
+        .catch(() => {
+          toast({
+            title: "Export Failed",
+            description: "Could not copy to clipboard",
+            variant: "destructive",
+          });
         });
-      }).catch(() => {
-        toast({
-          title: "Export Failed",
-          description: "Could not copy to clipboard",
-          variant: "destructive",
-        });
-      });
     } catch (error) {
       toast({
         title: "Export Failed",
@@ -76,24 +86,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     // Get current viewport dimensions
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     // Panel dimensions (approximate)
     const panelWidth = viewportWidth < 768 ? viewportWidth - 32 : 400; // Full width - margins on mobile
     const panelHeight = 500;
-    
+
     // On mobile, center horizontally and position near top
     if (viewportWidth < 768) {
       return {
         left: 16, // 16px margin on each side
-        top: 16,  // Position near top with 16px margin
-        width: panelWidth
+        top: 16, // Position near top with 16px margin
+        width: panelWidth,
       };
     }
-    
+
     // Desktop positioning logic
     let left;
     let top;
-    
+
     // Horizontal positioning - prefer positioning near the click if possible
     if (position.x + panelWidth > viewportWidth - 20) {
       // Too close to right edge, move it left
@@ -105,7 +115,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       // Position it near the click
       left = position.x - 20;
     }
-    
+
     // Vertical positioning
     if (position.y + panelHeight > viewportHeight - 20) {
       // Too close to bottom edge, move it up
@@ -117,7 +127,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       // Position it near the click
       top = position.y - 20;
     }
-    
+
     return { left, top, width: panelWidth };
   };
 
@@ -127,48 +137,57 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Handle clicks outside the controller to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (controllerRef.current && !controllerRef.current.contains(event.target as Node)) {
+      if (
+        controllerRef.current &&
+        !controllerRef.current.contains(event.target as Node)
+      ) {
         // If clicking outside the controller but on the panel, don't close
-        if (panelRef.current && panelRef.current.contains(event.target as Node)) {
+        if (
+          panelRef.current &&
+          panelRef.current.contains(event.target as Node)
+        ) {
           return;
         }
         onClose();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onClose]);
 
-  // Menu items 
+  // Menu items
   const menuItems = [
-    { id: 'layer1', label: 'Layer 1', color: 'from-pink-500 to-rose-600' },
-    { id: 'layer2', label: 'Layer 2', color: 'from-blue-500 to-indigo-600' },
-    { id: 'goo', label: 'Effects', color: 'from-emerald-500 to-teal-600' },
-    { id: 'touch', label: 'Touch', color: 'from-purple-500 to-indigo-600' },
+    { id: "layer1", label: "Layer 1", color: "from-pink-500 to-rose-600" },
+    { id: "layer2", label: "Layer 2", color: "from-blue-500 to-indigo-600" },
+    { id: "goo", label: "Effects", color: "from-emerald-500 to-teal-600" },
   ];
 
   // Animation for menu items
-  const menuItemSprings = menuItems.map((_, index) => 
+  const menuItemSprings = menuItems.map((_, index) =>
     useSpring({
       opacity: 1,
-      transform: 'translateY(0px)',
-      from: { opacity: 0, transform: 'translateY(20px)' },
-      delay: 100 + (index * 50),
-      config: config.wobbly
+      transform: "translateY(0px)",
+      from: { opacity: 0, transform: "translateY(20px)" },
+      delay: 100 + index * 50,
+      config: config.wobbly,
     })
   );
 
   // Update settings with new values
-  const handleUpdateSetting = (section: string, property: string, value: any) => {
+  const handleUpdateSetting = (
+    section: string,
+    property: string,
+    value: any
+  ) => {
     setSettings((prev: any) => ({
       ...prev,
       [section]: {
         ...prev[section],
-        [property]: value
-      }
+        [property]: value,
+      },
     }));
   };
 
@@ -176,29 +195,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const resetSettings = () => {
     const randomColor1 = generateRandomColor();
     const randomColor2 = generateRandomColor();
-    
+
     setSettings({
       layer1: {
-        spacing: 30,
-        size: 8,
+        spacing: 33,
+        size: 19,
         rotation: 0,
         color: randomColor1,
-        type: 'dots'
+        type: "dots",
       },
       layer2: {
-        spacing: 30,
-        size: 8,
-        rotation: 45,
+        spacing: 35,
+        size: 20.5,
+        rotation: 0,
         color: randomColor2,
-        type: 'dots'
+        type: "dots",
       },
       goo: {
-        enabled: false,
-        blur: 8,
-        threshold: 128,
+        enabled: true,
+        blur: 6,
+        threshold: 41,
         prePixelate: 1,
-        postPixelate: 1
-      }
+        postPixelate: 1,
+      },
     });
 
     toast({
@@ -211,16 +230,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const getSettingsPanelPosition = () => {
     // Check if we're near the right edge of the screen
     const isRightSide = position.x > window.innerWidth / 2;
-    
+
     if (isRightSide) {
       return {
-        right: '20px',
-        top: `${panelPosition.top}px`
+        right: "20px",
+        top: `${panelPosition.top}px`,
       };
     } else {
       return {
         left: `${panelPosition.left + 420}px`,
-        top: `${panelPosition.top}px`
+        top: `${panelPosition.top}px`,
       };
     }
   };
@@ -235,7 +254,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           left: panelPosition.left,
           top: panelPosition.top,
           width: panelPosition.width,
-          ...panelSpring
+          ...panelSpring,
         }}
       >
         <div className="bg-zinc-900/95 backdrop-blur-lg overflow-hidden shadow-xl">
@@ -249,14 +268,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   style={menuItemSprings[index]}
                   className={cn(
                     "py-2 px-3 text-left focus:outline-none",
-                    activeSection === id 
-                      ? id === 'layer1' 
-                        ? "bg-amber-700/70 text-amber-50" 
-                        : id === 'layer2'
-                          ? "bg-teal-800/70 text-teal-50"
-                          : id === 'goo'
-                            ? "bg-rose-900/70 text-rose-50"
-                            : "bg-purple-900/70 text-purple-50"
+                    activeSection === id
+                      ? id === "layer1"
+                        ? "bg-amber-700/70 text-amber-50"
+                        : id === "layer2"
+                        ? "bg-teal-800/70 text-teal-50"
+                        : id === "goo"
+                        ? "bg-rose-900/70 text-rose-50"
+                        : "bg-purple-900/70 text-purple-50"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                   onClick={() => setActiveSection(id)}
@@ -264,7 +283,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div className="font-medium">{label}</div>
                 </animated.button>
               ))}
-              
+
               {/* Export button */}
               <animated.button
                 style={menuItemSprings[3]}
@@ -277,77 +296,117 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
               </animated.button>
             </div>
-            
+
             {/* Right side with settings */}
             <div className="w-2/3 bg-zinc-800/70 p-2">
               {activeSection ? (
                 <div className="animate-in fade-in duration-300">
-                  {activeSection === 'goo' && (
+                  {activeSection === "goo" && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-sm text-zinc-200">Enable Effects</label>
+                        <label className="text-sm text-zinc-200">
+                          Enable Effects
+                        </label>
                         <Switch
                           checked={settings.goo.enabled}
-                          onCheckedChange={(checked) => handleUpdateSetting('goo', 'enabled', checked)}
+                          onCheckedChange={(checked) =>
+                            handleUpdateSetting("goo", "enabled", checked)
+                          }
                           className="data-[state=checked]:bg-rose-700"
                         />
                       </div>
-                      
+
                       {settings.goo.enabled && (
                         <>
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Pre-Pixelate</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.prePixelate}</span>
+                              <label className="text-sm text-zinc-200">
+                                Pre-Pixelate
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.goo.prePixelate}
+                              </span>
                             </div>
                             <Slider
                               value={[settings.goo.prePixelate]}
                               min={1}
                               max={100}
                               step={1}
-                              onValueChange={(value) => handleUpdateSetting('goo', 'prePixelate', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "goo",
+                                  "prePixelate",
+                                  value[0]
+                                )
+                              }
                             />
                           </div>
 
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Blur</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.blur}</span>
+                              <label className="text-sm text-zinc-200">
+                                Blur
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.goo.blur}
+                              </span>
                             </div>
                             <Slider
                               value={[settings.goo.blur]}
                               min={1}
                               max={100}
                               step={1}
-                              onValueChange={(value) => handleUpdateSetting('goo', 'blur', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting("goo", "blur", value[0])
+                              }
                             />
                           </div>
-                          
+
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Threshold</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.threshold}</span>
+                              <label className="text-sm text-zinc-200">
+                                Threshold
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.goo.threshold}
+                              </span>
                             </div>
                             <Slider
                               value={[settings.goo.threshold]}
                               min={1}
                               max={255}
                               step={1}
-                              onValueChange={(value) => handleUpdateSetting('goo', 'threshold', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "goo",
+                                  "threshold",
+                                  value[0]
+                                )
+                              }
                             />
                           </div>
 
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Post-Pixelate</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings.goo.postPixelate}</span>
+                              <label className="text-sm text-zinc-200">
+                                Post-Pixelate
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.goo.postPixelate}
+                              </span>
                             </div>
                             <Slider
                               value={[settings.goo.postPixelate]}
                               min={1}
                               max={100}
                               step={1}
-                              onValueChange={(value) => handleUpdateSetting('goo', 'postPixelate', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "goo",
+                                  "postPixelate",
+                                  value[0]
+                                )
+                              }
                             />
                           </div>
                         </>
@@ -355,23 +414,38 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                   )}
 
-                  
-                  {activeSection === 'touch' && (
+                  {activeSection === "touch" && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-sm text-zinc-200">Pinch to Zoom</label>
+                        <label className="text-sm text-zinc-200">
+                          Pinch to Zoom
+                        </label>
                         <Switch
                           checked={settings.touch?.enablePinchZoom ?? true}
-                          onCheckedChange={(checked) => handleUpdateSetting('touch', 'enablePinchZoom', checked)}
+                          onCheckedChange={(checked) =>
+                            handleUpdateSetting(
+                              "touch",
+                              "enablePinchZoom",
+                              checked
+                            )
+                          }
                           className="data-[state=checked]:bg-purple-700"
                         />
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
-                        <label className="text-sm text-zinc-200">Pinch to Rotate</label>
+                        <label className="text-sm text-zinc-200">
+                          Pinch to Rotate
+                        </label>
                         <Switch
                           checked={settings.touch?.enablePinchRotate ?? true}
-                          onCheckedChange={(checked) => handleUpdateSetting('touch', 'enablePinchRotate', checked)}
+                          onCheckedChange={(checked) =>
+                            handleUpdateSetting(
+                              "touch",
+                              "enablePinchRotate",
+                              checked
+                            )
+                          }
                           className="data-[state=checked]:bg-purple-700"
                         />
                       </div>
@@ -379,14 +453,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   )}
 
                   {/* Layer settings */}
-                  {(activeSection === 'layer1' || activeSection === 'layer2') && (
+                  {(activeSection === "layer1" ||
+                    activeSection === "layer2") && (
                     <div className="space-y-2">
                       <div>
                         <div className="flex justify-between">
                           <label className="text-sm text-zinc-200">Type</label>
                           <select
                             value={settings[activeSection].type}
-                            onChange={(e) => handleUpdateSetting(activeSection, 'type', e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateSetting(
+                                activeSection,
+                                "type",
+                                e.target.value
+                              )
+                            }
                             className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono"
                           >
                             <option value="dots">Dots</option>
@@ -397,33 +478,53 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
 
                       {/* Conditional control for concentric shapes */}
-                      {settings[activeSection].type === 'squares' && (
+                      {settings[activeSection].type === "squares" && (
                         <>
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Number of Squares</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].numShapes || 3}</span>
+                              <label className="text-sm text-zinc-200">
+                                Number of Squares
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings[activeSection].numShapes || 3}
+                              </span>
                             </div>
                             <Slider
                               value={[settings[activeSection].numShapes || 3]}
                               min={1}
                               max={30}
                               step={1}
-                              onValueChange={(value) => handleUpdateSetting(activeSection, 'numShapes', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  activeSection,
+                                  "numShapes",
+                                  value[0]
+                                )
+                              }
                             />
                           </div>
-                          
+
                           <div>
                             <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">Stroke Width</label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].strokeWidth || 1}px</span>
+                              <label className="text-sm text-zinc-200">
+                                Stroke Width
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings[activeSection].strokeWidth || 1}px
+                              </span>
                             </div>
                             <Slider
                               value={[settings[activeSection].strokeWidth || 1]}
                               min={0.5}
                               max={10}
                               step={0.5}
-                              onValueChange={(value) => handleUpdateSetting(activeSection, 'strokeWidth', value[0])}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  activeSection,
+                                  "strokeWidth",
+                                  value[0]
+                                )
+                              }
                             />
                           </div>
                         </>
@@ -431,43 +532,67 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                       <div>
                         <div className="flex justify-between">
-                          <label className="text-sm text-zinc-200">Spacing</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].spacing}px</span>
+                          <label className="text-sm text-zinc-200">
+                            Spacing
+                          </label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                            {settings[activeSection].spacing}px
+                          </span>
                         </div>
                         <Slider
                           value={[settings[activeSection].spacing]}
                           min={10}
                           max={200}
                           step={1}
-                          onValueChange={(value) => handleUpdateSetting(activeSection, 'spacing', value[0])}
+                          onValueChange={(value) =>
+                            handleUpdateSetting(
+                              activeSection,
+                              "spacing",
+                              value[0]
+                            )
+                          }
                         />
                       </div>
 
                       <div>
                         <div className="flex justify-between">
                           <label className="text-sm text-zinc-200">Size</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].size}px</span>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                            {settings[activeSection].size}px
+                          </span>
                         </div>
                         <Slider
                           value={[settings[activeSection].size]}
                           min={1}
                           max={300}
                           step={0.5}
-                          onValueChange={(value) => handleUpdateSetting(activeSection, 'size', value[0])}
+                          onValueChange={(value) =>
+                            handleUpdateSetting(activeSection, "size", value[0])
+                          }
                         />
                       </div>
 
                       <div>
                         <div className="flex justify-between">
-                          <label className="text-sm text-zinc-200">Rotation</label>
-                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">{settings[activeSection].rotation}°</span>
+                          <label className="text-sm text-zinc-200">
+                            Rotation
+                          </label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                            {settings[activeSection].rotation}°
+                          </span>
                         </div>
                         <Slider
                           value={[settings[activeSection].rotation]}
                           min={0}
                           max={360}
                           step={0.1}
-                          onValueChange={(value) => handleUpdateSetting(activeSection, 'rotation', value[0])}
+                          onValueChange={(value) =>
+                            handleUpdateSetting(
+                              activeSection,
+                              "rotation",
+                              value[0]
+                            )
+                          }
                         />
                       </div>
 
@@ -477,12 +602,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <input
                             type="color"
                             value={settings[activeSection].color}
-                            onChange={(e) => handleUpdateSetting(activeSection, 'color', e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateSetting(
+                                activeSection,
+                                "color",
+                                e.target.value
+                              )
+                            }
                             className="w-full h-full opacity-0 cursor-pointer absolute z-10"
                           />
-                          <div 
+                          <div
                             className="absolute inset-0"
-                            style={{ backgroundColor: settings[activeSection].color }}
+                            style={{
+                              backgroundColor: settings[activeSection].color,
+                            }}
                           />
                         </div>
                       </div>
@@ -503,4 +636,4 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   );
 };
 
-export default ControlPanel; 
+export default ControlPanel;
