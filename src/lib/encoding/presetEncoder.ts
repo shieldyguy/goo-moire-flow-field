@@ -75,13 +75,29 @@ const DEFAULT_SETTINGS: PresetData["settings"] = {
   },
 };
 
-function parseHex(hex: string): [number, number, number] {
-  const h = hex.replace("#", "");
-  return [
+function colorToRgb(color: string): [number, number, number] {
+  console.log("[preset] colorToRgb input:", JSON.stringify(color));
+  if (color.startsWith("#")) {
+    const h = color.slice(1);
+    const rgb: [number, number, number] = [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+    console.log("[preset] colorToRgb hex fast path →", rgb);
+    return rgb;
+  }
+  const ctx = document.createElement("canvas").getContext("2d")!;
+  ctx.fillStyle = color;
+  console.log("[preset] colorToRgb canvas normalized fillStyle:", JSON.stringify(ctx.fillStyle));
+  const h = ctx.fillStyle.slice(1);
+  const rgb: [number, number, number] = [
     parseInt(h.slice(0, 2), 16),
     parseInt(h.slice(2, 4), 16),
     parseInt(h.slice(4, 6), 16),
   ];
+  console.log("[preset] colorToRgb canvas path →", rgb);
+  return rgb;
 }
 
 function toHex(r: number, g: number, b: number): string {
@@ -102,7 +118,7 @@ function encodeLayer(
   view.setUint16(offset, Math.round(layer.spacing * 100));
   view.setUint16(offset + 2, Math.round(layer.size * 100));
   view.setUint16(offset + 4, Math.round(layer.rotation * 10));
-  const [r, g, b] = parseHex(layer.color);
+  const [r, g, b] = colorToRgb(layer.color);
   buf[offset + 6] = r;
   buf[offset + 7] = g;
   buf[offset + 8] = b;
@@ -116,6 +132,8 @@ function decodeLayer(
   buf: Uint8Array,
   offset: number,
 ): LayerSettings {
+  console.log(`[preset] decodeLayer offset=${offset} RGB bytes:`, buf[offset + 6], buf[offset + 7], buf[offset + 8]);
+  console.log(`[preset] decodeLayer offset=${offset} all bytes:`, Array.from(buf.slice(offset, offset + 12)));
   return {
     spacing: view.getUint16(offset) / 100,
     size: view.getUint16(offset + 2) / 100,
@@ -148,6 +166,10 @@ function fromUrlBase64(encoded: string): string {
 
 // Main encoding function - binary pack into 31 bytes
 export const encodePreset = (settings: PresetData["settings"]): string => {
+  console.log("[preset] encodePreset called with:", {
+    layer1Color: settings.layer1.color,
+    layer2Color: settings.layer2.color,
+  });
   const buf = new Uint8Array(31);
   const view = new DataView(buf.buffer);
 
@@ -168,7 +190,10 @@ export const encodePreset = (settings: PresetData["settings"]): string => {
     (settings.touch?.enablePinchZoom !== false ? 1 : 0) |
     (settings.touch?.enablePinchRotate !== false ? 2 : 0);
 
-  return toUrlBase64(buf);
+  const encoded = toUrlBase64(buf);
+  console.log("[preset] encodePreset → encoded string:", encoded);
+  console.log("[preset] encodePreset → raw bytes:", Array.from(buf));
+  return encoded;
 };
 
 const mergeWithDefaults = (
@@ -209,12 +234,21 @@ function decodeV3(binary: string): PresetData["settings"] {
 
 // Main decoding function - handles v0-v2 JSON and v3 binary
 export const decodePreset = (encoded: string): PresetData["settings"] => {
+  console.log("[preset] decodePreset called with:", encoded);
   try {
     const binary = fromUrlBase64(encoded);
+    console.log("[preset] decodePreset binary length:", binary.length, "first byte:", binary.charCodeAt(0));
 
     // v3 binary: first byte is 3 (not '{' which is 123)
     if (binary.charCodeAt(0) === 3) {
-      return decodeV3(binary);
+      const result = decodeV3(binary);
+      console.log("[preset] decodeV3 result:", {
+        layer1Color: result.layer1.color,
+        layer2Color: result.layer2.color,
+        layer1: result.layer1,
+        layer2: result.layer2,
+      });
+      return result;
     }
 
     // v0-v2: JSON-based

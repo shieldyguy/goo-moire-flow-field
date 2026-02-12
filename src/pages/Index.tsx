@@ -117,6 +117,13 @@ const Index = () => {
           finalSettings.layer2.type = "dots";
         }
 
+        console.log("[preset] applying decoded settings:", {
+          layer1Color: finalSettings.layer1.color,
+          layer2Color: finalSettings.layer2.color,
+          layer1: finalSettings.layer1,
+          layer2: finalSettings.layer2,
+          goo: finalSettings.goo,
+        });
         setSettings(finalSettings);
         /*toast({
           title: "Preset Loaded",
