@@ -173,14 +173,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       from: { opacity: 0, transform: "translateY(20px)" },
       delay: 100 + index * 50,
       config: config.wobbly,
-    })
+    }),
   );
 
   // Update settings with new values
   const handleUpdateSetting = (
     section: string,
     property: string,
-    value: any
+    value: any,
   ) => {
     setSettings((prev: any) => ({
       ...prev,
@@ -273,11 +273,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       ? id === "layer1"
                         ? "bg-amber-700/70 text-amber-50"
                         : id === "layer2"
-                        ? "bg-teal-800/70 text-teal-50"
-                        : id === "goo"
-                        ? "bg-rose-900/70 text-rose-50"
-                        : "bg-purple-900/70 text-purple-50"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                          ? "bg-teal-800/70 text-teal-50"
+                          : id === "goo"
+                            ? "bg-rose-900/70 text-rose-50"
+                            : "bg-purple-900/70 text-purple-50"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
                   )}
                   onClick={() => setActiveSection(id)}
                 >
@@ -337,7 +337,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   "goo",
                                   "prePixelate",
-                                  value[0]
+                                  value[0],
                                 )
                               }
                             />
@@ -381,7 +381,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   "goo",
                                   "threshold",
-                                  value[0]
+                                  value[0],
                                 )
                               }
                             />
@@ -405,7 +405,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   "goo",
                                   "postPixelate",
-                                  value[0]
+                                  value[0],
                                 )
                               }
                             />
@@ -425,13 +425,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <Slider
                           value={[settings.goo.driftFriction ?? 0]}
                           min={0}
-                          max={100}
-                          step={1}
+                          max={1}
+                          step={0.01}
                           onValueChange={(value) =>
                             handleUpdateSetting(
                               "goo",
                               "driftFriction",
-                              value[0]
+                              value[0],
                             )
                           }
                         />
@@ -451,7 +451,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             handleUpdateSetting(
                               "touch",
                               "enablePinchZoom",
-                              checked
+                              checked,
                             )
                           }
                           className="data-[state=checked]:bg-purple-700"
@@ -468,7 +468,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             handleUpdateSetting(
                               "touch",
                               "enablePinchRotate",
-                              checked
+                              checked,
                             )
                           }
                           className="data-[state=checked]:bg-purple-700"
@@ -490,7 +490,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               handleUpdateSetting(
                                 activeSection,
                                 "type",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono"
@@ -523,7 +523,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   activeSection,
                                   "numShapes",
-                                  value[0]
+                                  value[0],
                                 )
                               }
                             />
@@ -547,7 +547,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   activeSection,
                                   "strokeWidth",
-                                  value[0]
+                                  value[0],
                                 )
                               }
                             />
@@ -573,7 +573,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             handleUpdateSetting(
                               activeSection,
                               "spacing",
-                              value[0]
+                              value[0],
                             )
                           }
                         />
@@ -615,7 +615,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             handleUpdateSetting(
                               activeSection,
                               "rotation",
-                              value[0]
+                              value[0],
                             )
                           }
                         />
@@ -631,7 +631,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               handleUpdateSetting(
                                 activeSection,
                                 "color",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full h-full opacity-0 cursor-pointer absolute z-10"
