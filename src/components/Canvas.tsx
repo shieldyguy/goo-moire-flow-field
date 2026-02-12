@@ -125,8 +125,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const recordDragSample = (x: number, y: number) => {
     const now = performance.now();
     dragSamplesRef.current.push({ x, y, t: now });
-    // Prune samples older than 500ms
-    const cutoff = now - 500;
+    // Prune samples older than 100ms
+    const cutoff = now - 100;
     while (dragSamplesRef.current.length > 0 && dragSamplesRef.current[0].t < cutoff) {
       dragSamplesRef.current.shift();
     }
@@ -159,7 +159,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     stopDrift();
 
     driftVelocityRef.current = { vx, vy };
-    driftOffsetRef.current = { ...offset };
+    const samples = dragSamplesRef.current;
+    if (samples.length > 0) {
+      const last = samples[samples.length - 1];
+      driftOffsetRef.current = { x: last.x, y: last.y };
+      setOffset({ x: last.x, y: last.y });
+    } else {
+      driftOffsetRef.current = { ...offset };
+    }
     lastDriftTimeRef.current = performance.now();
     driftSetOffsetThrottleRef.current = 0;
 
