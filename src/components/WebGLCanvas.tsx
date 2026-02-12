@@ -84,13 +84,23 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
   ) => {
     ctx.save();
 
-    // Center the canvas
+    const spacing = layer.spacing * dpr; // Scale spacing with DPR
+
+    // Wrap offset modulo spacing so the grid never drifts more than one cell from center
+    const rad = (layer.rotation * Math.PI) / 180;
+    const cosR = Math.cos(rad);
+    const sinR = Math.sin(rad);
+    const localX = offsetX * cosR + offsetY * sinR;
+    const localY = -offsetX * sinR + offsetY * cosR;
+    const wrappedLocalX = ((localX % spacing) + spacing) % spacing;
+    const wrappedLocalY = ((localY % spacing) + spacing) % spacing;
+    const wrappedX = wrappedLocalX * cosR - wrappedLocalY * sinR;
+    const wrappedY = wrappedLocalX * sinR + wrappedLocalY * cosR;
+
     const centerX = width / 2;
     const centerY = height / 2;
-    ctx.translate(centerX + offsetX, centerY + offsetY);
-    ctx.rotate((layer.rotation * Math.PI) / 180);
-
-    const spacing = layer.spacing * dpr; // Scale spacing with DPR
+    ctx.translate(centerX + wrappedX, centerY + wrappedY);
+    ctx.rotate(rad);
     const size = layer.size * dpr; // Scale size with DPR
     const color = layer.color;
     const type = layer.type || 'dots'; // Default to dots if not specified

@@ -254,18 +254,27 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // Save the current state
     ctx.save();
 
-    // Translate to the center of the canvas
+    // Wrap offset modulo spacing so the grid never drifts more than one cell from center
+    const rad = (rotation * Math.PI) / 180;
+    const cosR = Math.cos(rad);
+    const sinR = Math.sin(rad);
+    // Convert screen-space offset to grid-local coords (undo rotation)
+    const localX = offsetX * cosR + offsetY * sinR;
+    const localY = -offsetX * sinR + offsetY * cosR;
+    // Wrap to one grid cell (positive modulo)
+    const wrappedLocalX = ((localX % spacing) + spacing) % spacing;
+    const wrappedLocalY = ((localY % spacing) + spacing) % spacing;
+    // Convert back to screen space
+    const wrappedX = wrappedLocalX * cosR - wrappedLocalY * sinR;
+    const wrappedY = wrappedLocalX * sinR + wrappedLocalY * cosR;
+
     ctx.translate(width / 2, height / 2);
+    ctx.translate(wrappedX, wrappedY);
+    ctx.rotate(rad);
 
-    // Apply translation
-    ctx.translate(offsetX, offsetY);
-
-    // Apply rotation 
-    ctx.rotate((rotation * Math.PI) / 180);
-
-    // Calculate grid dimensions
-    const gridWidth = width * 5; // Make grid larger than canvas to account for rotation
-    const gridHeight = height * 5;
+    // Calculate grid dimensions — 2.5x is enough since offset is always wrapped to < 1 cell
+    const gridWidth = width * 2.5;
+    const gridHeight = height * 2.5;
 
     // Calculate starting positions - ensure we have enough dots to fill the canvas
     const startX = -gridWidth / 2;
