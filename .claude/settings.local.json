@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cd /Users/chrismcdowell/Desktop/shieldy/Dev\\\\ Web/goo-moire-flow-field && npx tsc:*)",
+      "Bash(git checkout -- src/components/Canvas.tsx src/components/ControlPanel.tsx src/components/WebGLCanvas.tsx src/lib/encoding/presetEncoder.ts src/pages/Index.tsx)"
     ]
   }
 }

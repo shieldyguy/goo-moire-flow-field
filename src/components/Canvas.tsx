@@ -1,15 +1,21 @@
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { useToast } from "@/components/ui/use-toast";
-import ControlPanel from './ControlPanel';
-import WebGLCanvas from './WebGLCanvas';
-import { encodePreset } from '@/lib/encoding/presetEncoder';
-import GestureHandler from './GestureHandler';
+import ControlPanel from "./ControlPanel";
+import WebGLCanvas from "./WebGLCanvas";
+import { encodePreset } from "@/lib/encoding/presetEncoder";
+import GestureHandler from "./GestureHandler";
 
 // Custom hook to throttle a function to limit how often it's called
 // defaultFps = 60 means the function can be called at most once every ~16.6ms
 const useThrottle = <T extends (...args: any[]) => any>(
-  fn: T, 
-  fps: number = 12
+  fn: T,
+  fps: number = 12,
 ): T => {
   const lastCall = useRef<number>(0);
   const timeout = useRef<NodeJS.Timeout | null>(null);
@@ -31,14 +37,17 @@ const useThrottle = <T extends (...args: any[]) => any>(
 
       // Otherwise, set a timeout to execute after the throttle period
       if (timeout.current === null) {
-        timeout.current = setTimeout(() => {
-          lastCall.current = Date.now();
-          timeout.current = null;
-          fn(...lastArgs.current);
-        }, throttleMs - (now - lastCall.current));
+        timeout.current = setTimeout(
+          () => {
+            lastCall.current = Date.now();
+            timeout.current = null;
+            fn(...lastArgs.current);
+          },
+          throttleMs - (now - lastCall.current),
+        );
       }
     }) as T,
-    [fn, throttleMs]
+    [fn, throttleMs],
   );
 };
 
@@ -50,7 +59,7 @@ interface CanvasProps {
       size: number;
       rotation: number;
       color: string;
-      type: 'dots' | 'lines' | 'squares';
+      type: "dots" | "lines" | "squares";
       numShapes?: number;
       strokeWidth?: number;
     };
@@ -59,7 +68,7 @@ interface CanvasProps {
       size: number;
       rotation: number;
       color: string;
-      type: 'dots' | 'lines' | 'squares';
+      type: "dots" | "lines" | "squares";
       numShapes?: number;
       strokeWidth?: number;
     };
@@ -85,7 +94,7 @@ const generateRandomColor = () => {
   const h = Math.floor(Math.random() * 360); // Hue: 0-359
   const s = 40 + Math.floor(Math.random() * 30); // Saturation: 40-69%
   const l = 40 + Math.floor(Math.random() * 20); // Lightness: 40-59%
-  
+
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
@@ -127,7 +136,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     dragSamplesRef.current.push({ x, y, t: now });
     // Prune samples older than 100ms
     const cutoff = now - 100;
-    while (dragSamplesRef.current.length > 0 && dragSamplesRef.current[0].t < cutoff) {
+    while (
+      dragSamplesRef.current.length > 0 &&
+      dragSamplesRef.current[0].t < cutoff
+    ) {
       dragSamplesRef.current.shift();
     }
   };
@@ -155,7 +167,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const startDrift = (vx: number, vy: number) => {
-    if (Math.hypot(vx, vy) < 20) return;
+    if (Math.hypot(vx, vy) < 5) return;
     stopDrift();
 
     driftVelocityRef.current = { vx, vy };
@@ -191,10 +203,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       driftOffsetRef.current.y += vel.vy * dt;
 
       // Throttle setOffset calls to ~15 FPS
-      const throttleInterval = 1000 / 15;
+      const throttleInterval = 1000 / 24;
       if (now - driftSetOffsetThrottleRef.current >= throttleInterval) {
         driftSetOffsetThrottleRef.current = now;
-        const newOffset = { x: driftOffsetRef.current.x, y: driftOffsetRef.current.y };
+        const newOffset = {
+          x: driftOffsetRef.current.x,
+          y: driftOffsetRef.current.y,
+        };
         setOffset(newOffset);
       }
 
@@ -221,18 +236,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   // Check WebGL support
   useEffect(() => {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl');
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl");
     setWebglSupported(!!gl);
   }, []);
 
   // Initialize canvases
   useEffect(() => {
     if (!offscreenCanvasRef.current) {
-      offscreenCanvasRef.current = document.createElement('canvas');
+      offscreenCanvasRef.current = document.createElement("canvas");
     }
     if (!combinedCanvasRef.current) {
-      combinedCanvasRef.current = document.createElement('canvas');
+      combinedCanvasRef.current = document.createElement("canvas");
     }
   }, []);
 
@@ -240,19 +255,19 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   useEffect(() => {
     const updateDimensions = () => {
       if (!containerRef.current) return;
-      
+
       const rect = containerRef.current.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      
+
       setDimensions({
         width: Math.floor(rect.width * dpr),
-        height: Math.floor(rect.height * dpr)
+        height: Math.floor(rect.height * dpr),
       });
     };
 
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
   // Setup canvas and draw the initial pattern
@@ -266,23 +281,26 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       canvas.height = window.innerHeight * canvasScaleFactor;
 
       if (offscreenCanvasRef.current) {
-        offscreenCanvasRef.current.width = window.innerWidth * canvasScaleFactor;
-        offscreenCanvasRef.current.height = window.innerHeight * canvasScaleFactor;
+        offscreenCanvasRef.current.width =
+          window.innerWidth * canvasScaleFactor;
+        offscreenCanvasRef.current.height =
+          window.innerHeight * canvasScaleFactor;
       }
 
       if (combinedCanvasRef.current) {
         combinedCanvasRef.current.width = window.innerWidth * canvasScaleFactor;
-        combinedCanvasRef.current.height = window.innerHeight * canvasScaleFactor;
+        combinedCanvasRef.current.height =
+          window.innerHeight * canvasScaleFactor;
       }
 
       drawPattern();
     };
 
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener("resize", resizeCanvas);
     };
   });
 
@@ -297,9 +315,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const combinedCanvas = combinedCanvasRef.current;
     if (!canvas || !offscreenCanvas || !combinedCanvas) return;
 
-    const ctx = canvas.getContext('2d');
-    const offCtx = offscreenCanvas.getContext('2d');
-    const combinedCtx = combinedCanvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
+    const offCtx = offscreenCanvas.getContext("2d");
+    const combinedCtx = combinedCanvas.getContext("2d");
     if (!ctx || !offCtx || !combinedCtx) return;
 
     // Clear all canvases
@@ -320,7 +338,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       settings.layer1.size,
       settings.layer1.rotation,
       settings.layer1.color,
-      0, 0 // No offset for base layer
+      0,
+      0, // No offset for base layer
     );
 
     // Draw second layer (movable) on the main canvas
@@ -332,12 +351,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       settings.layer2.size,
       settings.layer2.rotation,
       settings.layer2.color,
-      offset.x, offset.y // Apply offset for top layer
+      offset.x,
+      offset.y, // Apply offset for top layer
     );
 
     // Combine both layers on the combinedCanvas
     combinedCtx.drawImage(offscreenCanvas, 0, 0);
-    combinedCtx.globalCompositeOperation = 'source-over';
+    combinedCtx.globalCompositeOperation = "source-over";
     combinedCtx.drawImage(canvas, 0, 0);
 
     // Apply goo effect to the combined result
@@ -357,7 +377,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     rotation: number,
     color: string,
     offsetX: number,
-    offsetY: number
+    offsetY: number,
   ) => {
     // Save the current state
     ctx.save();
@@ -406,16 +426,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const applyGooEffect = (
     ctx: CanvasRenderingContext2D,
     blur: number,
-    threshold: number
+    threshold: number,
   ) => {
     // Apply blur
     ctx.filter = `blur(${blur}px)`;
 
     // Create a temporary canvas to hold the blurred result
-    const tempCanvas = document.createElement('canvas');
+    const tempCanvas = document.createElement("canvas");
     tempCanvas.width = ctx.canvas.width;
     tempCanvas.height = ctx.canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
+    const tempCtx = tempCanvas.getContext("2d");
     if (!tempCtx) return;
 
     // Draw the current canvas to the temp canvas (this applies the blur)
@@ -424,11 +444,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
     // Clear the original canvas
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.filter = 'none';
+    ctx.filter = "none";
 
     // Apply threshold to the blurred image and draw back to original
-    tempCtx.filter = 'none';
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    tempCtx.filter = "none";
+    const imageData = tempCtx.getImageData(
+      0,
+      0,
+      tempCanvas.width,
+      tempCanvas.height,
+    );
     const data = imageData.data;
 
     for (let i = 0; i < data.length; i += 4) {
@@ -468,7 +493,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       setIsDragging(true);
       dragStartRef.current = {
         x: e.clientX - offset.x,
-        y: e.clientY - offset.y
+        y: e.clientY - offset.y,
       };
     }
 
@@ -496,7 +521,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   useEffect(() => {
     const interactionLayer = interactionLayerRef.current;
     if (!interactionLayer) return;
-    
+
     // These handlers will be able to use preventDefault() without warnings
     const handleTouchStartEvent = (e: TouchEvent) => {
       e.preventDefault(); // This works with {passive: false}
@@ -526,10 +551,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       setIsDragging(true);
       dragStartRef.current = {
         x: touch.clientX - offset.x,
-        y: touch.clientY - offset.y
+        y: touch.clientY - offset.y,
       };
     };
-    
+
     const handleTouchMoveEvent = (e: TouchEvent) => {
       e.preventDefault();
 
@@ -542,10 +567,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       recordDragSample(deltaX, deltaY);
       throttledSetOffset({
         x: deltaX,
-        y: deltaY
+        y: deltaY,
       });
     };
-    
+
     const handleTouchEndEvent = (e: TouchEvent) => {
       e.preventDefault();
       if (isDragging) {
@@ -554,24 +579,30 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       }
       setIsDragging(false);
     };
-    
+
     // Add event listeners with {passive: false} option
-    interactionLayer.addEventListener('touchstart', handleTouchStartEvent, { passive: false });
-    interactionLayer.addEventListener('touchmove', handleTouchMoveEvent, { passive: false });
-    interactionLayer.addEventListener('touchend', handleTouchEndEvent, { passive: false });
-    
+    interactionLayer.addEventListener("touchstart", handleTouchStartEvent, {
+      passive: false,
+    });
+    interactionLayer.addEventListener("touchmove", handleTouchMoveEvent, {
+      passive: false,
+    });
+    interactionLayer.addEventListener("touchend", handleTouchEndEvent, {
+      passive: false,
+    });
+
     // Clean up
     return () => {
-      interactionLayer.removeEventListener('touchstart', handleTouchStartEvent);
-      interactionLayer.removeEventListener('touchmove', handleTouchMoveEvent);
-      interactionLayer.removeEventListener('touchend', handleTouchEndEvent);
+      interactionLayer.removeEventListener("touchstart", handleTouchStartEvent);
+      interactionLayer.removeEventListener("touchmove", handleTouchMoveEvent);
+      interactionLayer.removeEventListener("touchend", handleTouchEndEvent);
     };
   }, [isDragging, offset, showMenu]);
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     stopDrift();
-    setShowMenu(prev => !prev);
+    setShowMenu((prev) => !prev);
     setMenuPosition({ x: e.clientX, y: e.clientY });
   };
 
@@ -584,7 +615,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handlePan = (deltaX: number, deltaY: number) => {
-    throttledSetOffset(prev => {
+    throttledSetOffset((prev) => {
       const newX = prev.x + deltaX;
       const newY = prev.y + deltaY;
       recordDragSample(newX, newY);
@@ -599,19 +630,19 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handlePinch = (newScale: number) => {
     if (!settings.touch?.enablePinchZoom) return;
-    
+
     // Limit scale between 0.5 and 2.0
     const clampedScale = Math.min(Math.max(newScale, 0.5), 2.0);
     setScale(clampedScale);
-    
+
     // Update spacing and size proportionally
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
       layer2: {
         ...prev.layer2,
         spacing: settings.layer2.spacing * clampedScale,
-        size: settings.layer2.size * clampedScale
-      }
+        size: settings.layer2.size * clampedScale,
+      },
     }));
   };
 
@@ -626,7 +657,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     if (showMenu) {
       setShowMenu(false);
     }
-    
+
     // Store starting rotation
     setInitialLayerRotation(settings.layer2.rotation);
     setIsRotating(true);
@@ -635,21 +666,22 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   // Handle rotation gesture
   const handleRotate = (rotationDegrees: number) => {
     if (!settings.touch?.enablePinchRotate || !isRotating) return;
-    
+
     // Calculate new rotation value
     const newRotation = (initialLayerRotation + rotationDegrees) % 360;
-    const normalizedRotation = newRotation < 0 ? newRotation + 360 : newRotation;
-    
+    const normalizedRotation =
+      newRotation < 0 ? newRotation + 360 : newRotation;
+
     // Update layer2 rotation
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
       layer2: {
         ...prev.layer2,
-        rotation: normalizedRotation
-      }
+        rotation: normalizedRotation,
+      },
     }));
   };
-  
+
   // Handle rotation end
   const handleRotateEnd = () => {
     setIsRotating(false);
@@ -676,20 +708,23 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       onRotateEnd={handleRotateEnd}
       onDoubleTap={handleDoubleTap}
     >
-      <div ref={containerRef} className="relative w-full h-full canvas-container">
+      <div
+        ref={containerRef}
+        className="relative w-full h-full canvas-container"
+      >
         {/* Original Canvas */}
         <canvas
           ref={canvasRef}
           width={dimensions.width}
           height={dimensions.height}
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-            opacity: webglSupported ? 0 : 1 // Hide if WebGL is supported
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            opacity: webglSupported ? 0 : 1, // Hide if WebGL is supported
           }}
         />
 
