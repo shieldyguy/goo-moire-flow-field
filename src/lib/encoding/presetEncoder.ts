@@ -1,23 +1,15 @@
-// Bit allocation for each parameter
-const BITS = {
-  // Layer parameters (same for both layers)
-  LAYER: {
-    SPACING: 8, // 0-255 pixels
-    SIZE: 8, // 0-255 pixels
-    ROTATION: 9, // 0-360 degrees
-    COLOR: 24, // RGB (8 bits per channel)
-  },
-  // Goo effect parameters
-  GOO: {
-    ENABLED: 1, // Boolean
-    BLUR: 8, // 0-255
-    THRESHOLD: 8, // 0-255
-    PRE_PIXELATE: 8, // 0-255
-    POST_PIXELATE: 8, // 0-255
-  },
-} as const;
+// V3 binary format: 31 bytes total
+// Byte 0:     version (3)
+// Bytes 1-12: Layer 1
+//   1-2: spacing*100 (uint16)  3-4: size*100 (uint16)  5-6: rotation*10 (uint16)
+//   7: R  8: G  9: B  10: type  11: numShapes  12: strokeWidth*10
+// Bytes 13-24: Layer 2 (same layout)
+// Bytes 25-29: Goo (enabled, blur, threshold, prePixelate, postPixelate)
+// Byte 30: Touch flags (bit0=pinchZoom, bit1=pinchRotate)
 
-// Type definitions
+const TYPE_TO_ID: Record<string, number> = { dots: 0, lines: 1, squares: 2 };
+const ID_TO_TYPE = ["dots", "lines", "squares"] as const;
+
 interface LayerSettings {
   spacing: number;
   size: number;
@@ -42,7 +34,7 @@ interface TouchSettings {
 }
 
 interface PresetData {
-  version?: number; // Optional version field for backward compatibility
+  version?: number;
   settings: {
     layer1: LayerSettings;
     layer2: LayerSettings;
@@ -51,7 +43,6 @@ interface PresetData {
   };
 }
 
-// Default values for backward compatibility
 const DEFAULT_SETTINGS: PresetData["settings"] = {
   layer1: {
     spacing: 33,
@@ -84,27 +75,104 @@ const DEFAULT_SETTINGS: PresetData["settings"] = {
   },
 };
 
-// Main encoding function - simply stringify and base64 encode
-export const encodePreset = (settings: PresetData["settings"]): string => {
-  // Add version information to the preset
-  const presetData: PresetData = {
-    version: 2, // Update version for new pattern types
-    settings,
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return (
+    "#" +
+    [r, g, b]
+      .map((v) => Math.min(255, Math.max(0, v)).toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+function encodeLayer(
+  view: DataView,
+  buf: Uint8Array,
+  offset: number,
+  layer: LayerSettings,
+) {
+  view.setUint16(offset, Math.round(layer.spacing * 100));
+  view.setUint16(offset + 2, Math.round(layer.size * 100));
+  view.setUint16(offset + 4, Math.round(layer.rotation * 10));
+  const [r, g, b] = parseHex(layer.color);
+  buf[offset + 6] = r;
+  buf[offset + 7] = g;
+  buf[offset + 8] = b;
+  buf[offset + 9] = TYPE_TO_ID[layer.type] ?? 0;
+  buf[offset + 10] = layer.numShapes ?? 3;
+  buf[offset + 11] = Math.round((layer.strokeWidth ?? 1) * 10);
+}
+
+function decodeLayer(
+  view: DataView,
+  buf: Uint8Array,
+  offset: number,
+): LayerSettings {
+  return {
+    spacing: view.getUint16(offset) / 100,
+    size: view.getUint16(offset + 2) / 100,
+    rotation: view.getUint16(offset + 4) / 10,
+    color: toHex(buf[offset + 6], buf[offset + 7], buf[offset + 8]),
+    type: ID_TO_TYPE[buf[offset + 9]] ?? "dots",
+    numShapes: buf[offset + 10],
+    strokeWidth: buf[offset + 11] / 10,
   };
+}
 
-  // Take the settings, convert to JSON string, then base64 encode
-  const jsonString = JSON.stringify(presetData);
-
-  // Base64 encode and make URL safe
-  return btoa(jsonString)
+function toUrlBase64(buf: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < buf.length; i++) {
+    binary += String.fromCharCode(buf[i]);
+  }
+  return btoa(binary)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+}
+
+function fromUrlBase64(encoded: string): string {
+  const base64 = encoded
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
+  return atob(base64);
+}
+
+// Main encoding function - binary pack into 31 bytes
+export const encodePreset = (settings: PresetData["settings"]): string => {
+  const buf = new Uint8Array(31);
+  const view = new DataView(buf.buffer);
+
+  buf[0] = 3; // version
+
+  encodeLayer(view, buf, 1, settings.layer1);
+  encodeLayer(view, buf, 13, settings.layer2);
+
+  // Goo
+  buf[25] = settings.goo.enabled ? 1 : 0;
+  buf[26] = Math.round(settings.goo.blur);
+  buf[27] = Math.round(settings.goo.threshold);
+  buf[28] = Math.round(settings.goo.prePixelate);
+  buf[29] = Math.round(settings.goo.postPixelate);
+
+  // Touch
+  buf[30] =
+    (settings.touch?.enablePinchZoom !== false ? 1 : 0) |
+    (settings.touch?.enablePinchRotate !== false ? 2 : 0);
+
+  return toUrlBase64(buf);
 };
 
-// Helper function to merge settings with defaults
 const mergeWithDefaults = (
-  settings: Partial<PresetData["settings"]>
+  settings: Partial<PresetData["settings"]>,
 ): PresetData["settings"] => {
   return {
     layer1: { ...DEFAULT_SETTINGS.layer1, ...settings.layer1 },
@@ -114,27 +182,47 @@ const mergeWithDefaults = (
   };
 };
 
-// Main decoding function - base64 decode and parse JSON
+// Decode v3 binary format
+function decodeV3(binary: string): PresetData["settings"] {
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buf[i] = binary.charCodeAt(i);
+  }
+  const view = new DataView(buf.buffer);
+
+  return {
+    layer1: decodeLayer(view, buf, 1),
+    layer2: decodeLayer(view, buf, 13),
+    goo: {
+      enabled: buf[25] === 1,
+      blur: buf[26],
+      threshold: buf[27],
+      prePixelate: buf[28],
+      postPixelate: buf[29],
+    },
+    touch: {
+      enablePinchZoom: (buf[30] & 1) !== 0,
+      enablePinchRotate: (buf[30] & 2) !== 0,
+    },
+  };
+}
+
+// Main decoding function - handles v0-v2 JSON and v3 binary
 export const decodePreset = (encoded: string): PresetData["settings"] => {
   try {
-    // Convert from URL-safe base64
-    const base64 = encoded
-      .replace(/-/g, "+")
-      .replace(/_/g, "/")
-      .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=");
+    const binary = fromUrlBase64(encoded);
 
-    // Decode base64 to JSON string
-    const jsonString = atob(base64);
+    // v3 binary: first byte is 3 (not '{' which is 123)
+    if (binary.charCodeAt(0) === 3) {
+      return decodeV3(binary);
+    }
 
-    // Parse JSON into settings object
-    const data = JSON.parse(jsonString) as PresetData;
+    // v0-v2: JSON-based
+    const data = JSON.parse(binary) as PresetData;
 
-    // Handle different versions of presets
     if (data.version === undefined) {
-      // Version 0 (legacy) - settings are at the root level
       return mergeWithDefaults(data as any);
     } else if (data.version === 1 || data.version === 2) {
-      // Version 1 & 2 - settings are nested under settings property
       return mergeWithDefaults(data.settings);
     } else {
       throw new Error("Unsupported preset version");
