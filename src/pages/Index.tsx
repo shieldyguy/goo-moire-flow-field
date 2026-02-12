@@ -22,6 +22,7 @@ interface GooSettings {
   threshold: number;
   prePixelate: number;
   postPixelate: number;
+  driftFriction: number;
 }
 
 interface TouchSettings {
@@ -78,6 +79,7 @@ const Index = () => {
       threshold: 41,
       prePixelate: 1,
       postPixelate: 1,
+      driftFriction: 0,
     },
     touch: {
       enablePinchZoom: true,

@@ -69,6 +69,7 @@ interface CanvasProps {
       enabled: boolean;
       prePixelate: number;
       postPixelate: number;
+      driftFriction: number;
     };
     touch?: {
       enablePinchZoom: boolean;
@@ -107,9 +108,109 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [initialLayerRotation, setInitialLayerRotation] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
   const interactionLayerRef = useRef<HTMLDivElement>(null);
-  
+
+  // Drift refs
+  const dragSamplesRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
+  const driftAnimRef = useRef<number | null>(null);
+  const driftVelocityRef = useRef({ vx: 0, vy: 0 });
+  const driftOffsetRef = useRef({ x: 0, y: 0 });
+  const lastDriftTimeRef = useRef(0);
+  const driftSetOffsetThrottleRef = useRef(0);
+
   // Adjust this number to change the max frame rate (higher = smoother, lower = more performance)
   const throttledSetOffset = useThrottle(setOffset, 15);
+
+  // --- Drift functions ---
+
+  const recordDragSample = (x: number, y: number) => {
+    const now = performance.now();
+    dragSamplesRef.current.push({ x, y, t: now });
+    // Prune samples older than 500ms
+    const cutoff = now - 500;
+    while (dragSamplesRef.current.length > 0 && dragSamplesRef.current[0].t < cutoff) {
+      dragSamplesRef.current.shift();
+    }
+  };
+
+  const computeDriftVelocity = () => {
+    const samples = dragSamplesRef.current;
+    if (samples.length < 2) return { vx: 0, vy: 0 };
+    const first = samples[0];
+    const last = samples[samples.length - 1];
+    const dt = (last.t - first.t) / 1000; // seconds
+    if (dt < 0.016) return { vx: 0, vy: 0 };
+    return {
+      vx: (last.x - first.x) / dt,
+      vy: (last.y - first.y) / dt,
+    };
+  };
+
+  const stopDrift = () => {
+    if (driftAnimRef.current !== null) {
+      cancelAnimationFrame(driftAnimRef.current);
+      driftAnimRef.current = null;
+    }
+    driftVelocityRef.current = { vx: 0, vy: 0 };
+    dragSamplesRef.current = [];
+  };
+
+  const startDrift = (vx: number, vy: number) => {
+    if (Math.hypot(vx, vy) < 20) return;
+    stopDrift();
+
+    driftVelocityRef.current = { vx, vy };
+    driftOffsetRef.current = { ...offset };
+    lastDriftTimeRef.current = performance.now();
+    driftSetOffsetThrottleRef.current = 0;
+
+    const friction = settings.goo.driftFriction ?? 0;
+
+    const tick = (now: number) => {
+      let dt = (now - lastDriftTimeRef.current) / 1000; // seconds
+      if (dt > 0.1) dt = 0.1; // cap for tab backgrounding
+      lastDriftTimeRef.current = now;
+
+      const vel = driftVelocityRef.current;
+
+      // Apply friction (frame-rate-independent)
+      if (friction > 0) {
+        const decay = Math.pow(1 - friction / 100, dt * 60);
+        vel.vx *= decay;
+        vel.vy *= decay;
+      }
+
+      // Accumulate position
+      driftOffsetRef.current.x += vel.vx * dt;
+      driftOffsetRef.current.y += vel.vy * dt;
+
+      // Throttle setOffset calls to ~15 FPS
+      const throttleInterval = 1000 / 15;
+      if (now - driftSetOffsetThrottleRef.current >= throttleInterval) {
+        driftSetOffsetThrottleRef.current = now;
+        const newOffset = { x: driftOffsetRef.current.x, y: driftOffsetRef.current.y };
+        setOffset(newOffset);
+      }
+
+      // Stop when speed is negligible (only matters with friction)
+      if (friction > 0 && Math.hypot(vel.vx, vel.vy) < 0.5) {
+        driftAnimRef.current = null;
+        return;
+      }
+
+      driftAnimRef.current = requestAnimationFrame(tick);
+    };
+
+    driftAnimRef.current = requestAnimationFrame(tick);
+  };
+
+  // Cleanup drift rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (driftAnimRef.current !== null) {
+        cancelAnimationFrame(driftAnimRef.current);
+      }
+    };
+  }, []);
 
   // Check WebGL support
   useEffect(() => {
@@ -342,6 +443,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    stopDrift();
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
@@ -369,13 +471,17 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
 
-    throttledSetOffset({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y
-    });
+    const newX = e.clientX - dragStartRef.current.x;
+    const newY = e.clientY - dragStartRef.current.y;
+    recordDragSample(newX, newY);
+    throttledSetOffset({ x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
+    if (isDragging) {
+      const { vx, vy } = computeDriftVelocity();
+      startDrift(vx, vy);
+    }
     setIsDragging(false);
   };
 
@@ -387,15 +493,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // These handlers will be able to use preventDefault() without warnings
     const handleTouchStartEvent = (e: TouchEvent) => {
       e.preventDefault(); // This works with {passive: false}
-      
+      stopDrift();
+
       if (e.touches.length > 1) {
         return;
       }
-      
+
       const touch = e.touches[0];
       const currentTime = new Date().getTime();
       const timeDiff = currentTime - lastClickTimeRef.current;
-      
+
       if (showMenu) {
         setShowMenu(false);
         return;
@@ -406,9 +513,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         setShowMenu(true);
         return;
       }
-      
+
       lastClickTimeRef.current = currentTime;
-      
+
       setIsDragging(true);
       dragStartRef.current = {
         x: touch.clientX - offset.x,
@@ -418,13 +525,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     
     const handleTouchMoveEvent = (e: TouchEvent) => {
       e.preventDefault();
-      
+
       if (!isDragging) return;
-      
+
       const touch = e.touches[0];
       const deltaX = touch.clientX - dragStartRef.current.x;
       const deltaY = touch.clientY - dragStartRef.current.y;
-      
+
+      recordDragSample(deltaX, deltaY);
       throttledSetOffset({
         x: deltaX,
         y: deltaY
@@ -433,6 +541,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     
     const handleTouchEndEvent = (e: TouchEvent) => {
       e.preventDefault();
+      if (isDragging) {
+        const { vx, vy } = computeDriftVelocity();
+        startDrift(vx, vy);
+      }
       setIsDragging(false);
     };
     
@@ -451,6 +563,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
+    stopDrift();
     setShowMenu(prev => !prev);
     setMenuPosition({ x: e.clientX, y: e.clientY });
   };
@@ -459,11 +572,22 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setShowMenu(false);
   };
 
+  const handlePanStart = () => {
+    stopDrift();
+  };
+
   const handlePan = (deltaX: number, deltaY: number) => {
-    throttledSetOffset(prev => ({
-      x: prev.x + deltaX,
-      y: prev.y + deltaY
-    }));
+    throttledSetOffset(prev => {
+      const newX = prev.x + deltaX;
+      const newY = prev.y + deltaY;
+      recordDragSample(newX, newY);
+      return { x: newX, y: newY };
+    });
+  };
+
+  const handlePanEnd = () => {
+    const { vx, vy } = computeDriftVelocity();
+    startDrift(vx, vy);
   };
 
   const handlePinch = (newScale: number) => {
@@ -488,7 +612,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleRotateStart = () => {
     // Only proceed if rotation is enabled
     if (!settings.touch?.enablePinchRotate) return;
-    
+
+    stopDrift();
+
     // Close menu if it's open
     if (showMenu) {
       setShowMenu(false);
@@ -526,7 +652,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const handleDoubleTap = (x: number, y: number) => {
     // Only respond to double tap if not currently rotating
     if (isRotating) return;
-    
+
+    stopDrift();
     setMenuPosition({ x, y });
     setShowMenu(true);
   };
@@ -534,6 +661,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   return (
     <GestureHandler
       onPan={handlePan}
+      onPanStart={handlePanStart}
+      onPanEnd={handlePanEnd}
       onPinch={handlePinch}
       onRotate={handleRotate}
       onRotateStart={handleRotateStart}

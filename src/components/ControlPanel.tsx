@@ -217,6 +217,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         threshold: 41,
         prePixelate: 1,
         postPixelate: 1,
+        driftFriction: 0,
       },
     });
 
@@ -411,6 +412,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           </div>
                         </>
                       )}
+
+                      <div>
+                        <div className="flex justify-between">
+                          <label className="text-sm text-zinc-200">
+                            Drift Friction
+                          </label>
+                          <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                            {settings.goo.driftFriction ?? 0}
+                          </span>
+                        </div>
+                        <Slider
+                          value={[settings.goo.driftFriction ?? 0]}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onValueChange={(value) =>
+                            handleUpdateSetting(
+                              "goo",
+                              "driftFriction",
+                              value[0]
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   )}
 

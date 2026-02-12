@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from 'react';
 
 interface GestureHandlerProps {
   onPan: (deltaX: number, deltaY: number) => void;
+  onPanStart?: () => void;
+  onPanEnd?: () => void;
   onPinch: (scale: number) => void;
   onRotate: (rotation: number) => void;
   onRotateStart?: () => void;
@@ -12,6 +14,8 @@ interface GestureHandlerProps {
 
 const GestureHandler: React.FC<GestureHandlerProps> = ({
   onPan,
+  onPanStart,
+  onPanEnd,
   onPinch,
   onRotate,
   onRotateStart,
@@ -45,9 +49,21 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     });
     
     // Handle pan
+    hammer.on('panstart', () => {
+      if (!isMultiTouch) {
+        onPanStart?.();
+      }
+    });
+
     hammer.on('pan', (e) => {
       if (!isMultiTouch) {
         onPan(e.deltaX, e.deltaY);
+      }
+    });
+
+    hammer.on('panend', () => {
+      if (!isMultiTouch) {
+        onPanEnd?.();
       }
     });
     
@@ -83,7 +99,7 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     return () => {
       hammer.destroy();
     };
-  }, [onPan, onPinch, onRotate, onRotateStart, onRotateEnd, onDoubleTap]);
+  }, [onPan, onPanStart, onPanEnd, onPinch, onRotate, onRotateStart, onRotateEnd, onDoubleTap]);
   
   return (
     <div
