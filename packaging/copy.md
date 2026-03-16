@@ -1,15 +1,7 @@
-# Emergent Field Explorer
+Emergent Field Explorer
+An interactive Moiré pattern generator. Configurable patterns can be sized, rotated, and effected to create "emergent fields" of pattern interference. 
+Double tap for settings and export (copies a link to your clipboard)
 
-## Description (3 sentences)
-
-An interactive Moiré pattern generator that layers configurable grids to produce emergent visual fields. Drag, pinch, and rotate to shift the layers and watch organic patterns bloom in real time. A goo effect melts everything together into something alive.
-
-## Links
-
-- Live: https://fields.lunchfirm.com
-- Studio: https://lunchfirm.com
-- Author: Chris McDowell
-
-## Hashtags
-
-#generativeart #moire #creativecoding #interactiveart #webgl
+Live: https://fields.lunchfirm.com
+Studio: https://lunchfirm.com
+Author: Chris McDowell
