@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/", "has": [{ "type": "query", "key": "p" }], "destination": "/api/og" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

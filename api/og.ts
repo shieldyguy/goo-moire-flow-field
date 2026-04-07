@@ -1,5 +1,3 @@
-import { next } from '@vercel/functions';
-
 const CRAWLER_AGENTS = [
   'Twitterbot',
   'facebookexternalhit',
@@ -42,36 +40,39 @@ function buildOgHtml(imageUrl: string, presetParam: string): string {
 </html>`;
 }
 
-export default async function middleware(req: Request): Promise<Response> {
+export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const preset = url.searchParams.get('p');
   const ua = req.headers.get('user-agent') ?? '';
 
+  // Not a crawler or no preset — redirect to the SPA
   if (!preset || !isCrawler(ua)) {
-    return next();
+    return new Response(null, {
+      status: 302,
+      headers: { Location: preset ? `/?p=${preset}` : '/' },
+    });
   }
 
   const blobStoreUrl = process.env.BLOB_STORE_URL;
-  if (!blobStoreUrl) {
-    return next();
-  }
 
-  const imageUrl = `${blobStoreUrl}/og/${encodeURIComponent(preset)}.png`;
+  if (blobStoreUrl) {
+    const imageUrl = `${blobStoreUrl}/og/${encodeURIComponent(preset)}.png`;
 
-  // Check if the preset-specific OG image exists
-  try {
-    const headResp = await fetch(imageUrl, { method: 'HEAD' });
-    if (headResp.ok) {
-      return new Response(buildOgHtml(imageUrl, preset), {
-        headers: { 'content-type': 'text/html; charset=utf-8' },
-      });
+    try {
+      const headResp = await fetch(imageUrl, { method: 'HEAD' });
+      if (headResp.ok) {
+        return new Response(buildOgHtml(imageUrl, preset), {
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        });
+      }
+    } catch {
+      // Blob doesn't exist or fetch failed — fall through to default
     }
-  } catch {
-    // Blob doesn't exist or fetch failed — fall through to default
   }
 
-  // Fallback to static default OG image
   return new Response(buildOgHtml(DEFAULT_OG_IMAGE, preset), {
     headers: { 'content-type': 'text/html; charset=utf-8' },
   });
 }
+
+export const config = { runtime: 'edge' };
