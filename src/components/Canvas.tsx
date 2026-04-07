@@ -2,13 +2,11 @@ import React, {
   useRef,
   useEffect,
   useState,
-  useMemo,
   useCallback,
 } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import ControlPanel from "./ControlPanel";
 import WebGLCanvas from "./WebGLCanvas";
-import { encodePreset } from "@/lib/encoding/presetEncoder";
 import GestureHandler from "./GestureHandler";
 
 // Custom hook to throttle a function to limit how often it's called
@@ -99,9 +97,6 @@ const generateRandomColor = () => {
 };
 
 const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const combinedCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -112,7 +107,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const { toast } = useToast();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const [webglSupported, setWebglSupported] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [scale, setScale] = useState(1);
   const [initialLayerRotation, setInitialLayerRotation] = useState(0);
@@ -131,8 +125,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const throttledSetOffset = useThrottle(setOffset, 15);
 
   const getSnapshot = useCallback((): HTMLCanvasElement | null => {
-    return webglSupported ? webglCanvasRef.current : canvasRef.current;
-  }, [webglSupported]);
+    return webglCanvasRef.current;
+  }, []);
 
   // --- Drift functions ---
 
@@ -239,23 +233,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     };
   }, []);
 
-  // Check WebGL support
-  useEffect(() => {
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl");
-    setWebglSupported(!!gl);
-  }, []);
-
-  // Initialize canvases
-  useEffect(() => {
-    if (!offscreenCanvasRef.current) {
-      offscreenCanvasRef.current = document.createElement("canvas");
-    }
-    if (!combinedCanvasRef.current) {
-      combinedCanvasRef.current = document.createElement("canvas");
-    }
-  }, []);
-
   // Handle resize and device pixel ratio
   useEffect(() => {
     const updateDimensions = () => {
@@ -274,210 +251,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     window.addEventListener("resize", updateDimensions);
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
-
-  // Setup canvas and draw the initial pattern
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const resizeCanvas = () => {
-      const canvasScaleFactor = 0.5;
-      canvas.width = window.innerWidth * canvasScaleFactor;
-      canvas.height = window.innerHeight * canvasScaleFactor;
-
-      if (offscreenCanvasRef.current) {
-        offscreenCanvasRef.current.width =
-          window.innerWidth * canvasScaleFactor;
-        offscreenCanvasRef.current.height =
-          window.innerHeight * canvasScaleFactor;
-      }
-
-      if (combinedCanvasRef.current) {
-        combinedCanvasRef.current.width = window.innerWidth * canvasScaleFactor;
-        combinedCanvasRef.current.height =
-          window.innerHeight * canvasScaleFactor;
-      }
-
-      drawPattern();
-    };
-
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-    };
-  });
-
-  // Redraw when settings change
-  useEffect(() => {
-    drawPattern();
-  }, [settings, offset]);
-
-  const drawPattern = () => {
-    const canvas = canvasRef.current;
-    const offscreenCanvas = offscreenCanvasRef.current;
-    const combinedCanvas = combinedCanvasRef.current;
-    if (!canvas || !offscreenCanvas || !combinedCanvas) return;
-
-    const ctx = canvas.getContext("2d");
-    const offCtx = offscreenCanvas.getContext("2d");
-    const combinedCtx = combinedCanvas.getContext("2d");
-    if (!ctx || !offCtx || !combinedCtx) return;
-
-    // Clear all canvases
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-    combinedCtx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
-
-    // Common parameters
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Draw first layer (static background) on the offscreen canvas
-    drawDotGrid(
-      offCtx,
-      width,
-      height,
-      settings.layer1.spacing,
-      settings.layer1.size,
-      settings.layer1.rotation,
-      settings.layer1.color,
-      0,
-      0, // No offset for base layer
-    );
-
-    // Draw second layer (movable) on the main canvas
-    drawDotGrid(
-      ctx,
-      width,
-      height,
-      settings.layer2.spacing,
-      settings.layer2.size,
-      settings.layer2.rotation,
-      settings.layer2.color,
-      offset.x,
-      offset.y, // Apply offset for top layer
-    );
-
-    // Combine both layers on the combinedCanvas
-    combinedCtx.drawImage(offscreenCanvas, 0, 0);
-    combinedCtx.globalCompositeOperation = "source-over";
-    combinedCtx.drawImage(canvas, 0, 0);
-
-    // Apply goo effect to the combined result
-    applyGooEffect(combinedCtx, settings.goo.blur, settings.goo.threshold);
-
-    // Clear the main canvas and draw the combined result with goo effect
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(combinedCanvas, 0, 0);
-  };
-
-  const drawDotGrid = (
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    spacing: number,
-    dotSize: number,
-    rotation: number,
-    color: string,
-    offsetX: number,
-    offsetY: number,
-  ) => {
-    // Save the current state
-    ctx.save();
-
-    // Wrap offset modulo spacing so the grid never drifts more than one cell from center
-    const rad = (rotation * Math.PI) / 180;
-    const cosR = Math.cos(rad);
-    const sinR = Math.sin(rad);
-    // Convert screen-space offset to grid-local coords (undo rotation)
-    const localX = offsetX * cosR + offsetY * sinR;
-    const localY = -offsetX * sinR + offsetY * cosR;
-    // Wrap to one grid cell (positive modulo)
-    const wrappedLocalX = ((localX % spacing) + spacing) % spacing;
-    const wrappedLocalY = ((localY % spacing) + spacing) % spacing;
-    // Convert back to screen space
-    const wrappedX = wrappedLocalX * cosR - wrappedLocalY * sinR;
-    const wrappedY = wrappedLocalX * sinR + wrappedLocalY * cosR;
-
-    ctx.translate(width / 2, height / 2);
-    ctx.translate(wrappedX, wrappedY);
-    ctx.rotate(rad);
-
-    // Calculate grid dimensions — 2.5x is enough since offset is always wrapped to < 1 cell
-    const gridWidth = width * 2.5;
-    const gridHeight = height * 2.5;
-
-    // Calculate starting positions - ensure we have enough dots to fill the canvas
-    const startX = -gridWidth / 2;
-    const startY = -gridHeight / 2;
-
-    // Draw the grid of dots
-    ctx.fillStyle = color;
-
-    for (let x = startX; x < gridWidth / 2; x += spacing) {
-      for (let y = startY; y < gridHeight / 2; y += spacing) {
-        ctx.beginPath();
-        ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // Restore the original state
-    ctx.restore();
-  };
-
-  const applyGooEffect = (
-    ctx: CanvasRenderingContext2D,
-    blur: number,
-    threshold: number,
-  ) => {
-    // Apply blur
-    ctx.filter = `blur(${blur}px)`;
-
-    // Create a temporary canvas to hold the blurred result
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = ctx.canvas.width;
-    tempCanvas.height = ctx.canvas.height;
-    const tempCtx = tempCanvas.getContext("2d");
-    if (!tempCtx) return;
-
-    // Draw the current canvas to the temp canvas (this applies the blur)
-    tempCtx.filter = `blur(${blur}px)`;
-    tempCtx.drawImage(ctx.canvas, 0, 0);
-
-    // Clear the original canvas
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.filter = "none";
-
-    // Apply threshold to the blurred image and draw back to original
-    tempCtx.filter = "none";
-    const imageData = tempCtx.getImageData(
-      0,
-      0,
-      tempCanvas.width,
-      tempCanvas.height,
-    );
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      // Calculate grayscale value
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const v = 0.3 * r + 0.59 * g + 0.11 * b;
-
-      // Apply threshold
-      const a = v > threshold ? 255 : 0;
-
-      // Keep original color but adjust alpha
-      data[i + 3] = a;
-    }
-
-    tempCtx.putImageData(imageData, 0, 0);
-    ctx.drawImage(tempCanvas, 0, 0);
-  };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     stopDrift();
@@ -717,32 +490,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         ref={containerRef}
         className="relative w-full h-full canvas-container"
       >
-        {/* Original Canvas */}
-        <canvas
-          ref={canvasRef}
+        <WebGLCanvas
+          ref={webglCanvasRef}
           width={dimensions.width}
           height={dimensions.height}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            pointerEvents: "none",
-            opacity: webglSupported ? 0 : 1, // Hide if WebGL is supported
-          }}
+          settings={settings}
+          offset={offset}
         />
-
-        {/* WebGL Canvas */}
-        {webglSupported && (
-          <WebGLCanvas
-            ref={webglCanvasRef}
-            width={dimensions.width}
-            height={dimensions.height}
-            settings={settings}
-            offset={offset}
-          />
-        )}
 
         {/* Interaction layer */}
         <div
