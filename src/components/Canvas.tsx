@@ -490,13 +490,15 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         ref={containerRef}
         className="relative w-full h-full canvas-container"
       >
-        <WebGLCanvas
-          ref={webglCanvasRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          settings={settings}
-          offset={offset}
-        />
+        {dimensions.width > 0 && dimensions.height > 0 && (
+          <WebGLCanvas
+            ref={webglCanvasRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            settings={settings}
+            offset={offset}
+          />
+        )}
 
         {/* Interaction layer */}
         <div
