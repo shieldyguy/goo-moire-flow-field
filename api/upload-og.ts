@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 
 const PRESET_PATTERN = /^[A-Za-z0-9_-]{10,100}$/;
-const MAX_BODY_SIZE = 500 * 1024; // 500KB
+const MAX_BODY_SIZE = 2 * 1024 * 1024; // 2MB
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
