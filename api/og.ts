@@ -1,23 +1,10 @@
-const CRAWLER_AGENTS = [
-  'Twitterbot',
-  'facebookexternalhit',
-  'LinkedInBot',
-  'Slackbot',
-  'Discordbot',
-  'WhatsApp',
-  'TelegramBot',
-  'Applebot',
-];
-
 const SITE_URL = 'https://fields.lunchfirm.com';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/packaging/og/og-image.png`;
 
-function isCrawler(ua: string): boolean {
-  return CRAWLER_AGENTS.some((bot) => ua.includes(bot));
-}
-
 function buildOgHtml(imageUrl: string, presetParam: string): string {
   const pageUrl = `${SITE_URL}/?p=${presetParam}`;
+  // Serve OG meta tags for all visitors. Crawlers read the tags and stop.
+  // Browsers execute the script and navigate to the SPA.
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -36,27 +23,25 @@ function buildOgHtml(imageUrl: string, presetParam: string): string {
   <meta name="twitter:description" content="Emergent Field Explorer by Lunch." />
   <meta name="twitter:image" content="${imageUrl}" />
 </head>
-<body></body>
+<body>
+  <script>window.location.replace("${pageUrl}&_r=1");</script>
+</body>
 </html>`;
 }
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const preset = url.searchParams.get('p');
-  const ua = req.headers.get('user-agent') ?? '';
 
-  // Not a crawler or no preset — redirect to the SPA
-  if (!preset || !isCrawler(ua)) {
-    return new Response(null, {
-      status: 302,
-      headers: { Location: preset ? `/?p=${preset}` : '/' },
-    });
+  if (!preset) {
+    return Response.redirect(`${SITE_URL}/`, 302);
   }
 
   const blobStoreUrl = process.env.BLOB_STORE_URL;
 
   if (blobStoreUrl) {
-    const imageUrl = `${blobStoreUrl}/og/${encodeURIComponent(preset)}.png`;
+    // Use the raw preset string (same as upload key) — no encodeURIComponent
+    const imageUrl = `${blobStoreUrl}/og/${preset}.png`;
 
     try {
       const headResp = await fetch(imageUrl, { method: 'HEAD' });

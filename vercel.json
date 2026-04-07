@@ -1,6 +1,11 @@
 {
   "rewrites": [
-    { "source": "/", "has": [{ "type": "query", "key": "p" }], "destination": "/api/og" },
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "p" }],
+      "missing": [{ "type": "query", "key": "_r" }],
+      "destination": "/api/og"
+    },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
