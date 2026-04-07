@@ -32,6 +32,7 @@ interface ControlPanelProps {
   settings: any;
   setSettings: React.Dispatch<React.SetStateAction<any>>;
   getSnapshot?: () => HTMLCanvasElement | null;
+  initializeAudio?: () => Promise<boolean>;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -40,6 +41,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   settings,
   setSettings,
   getSnapshot,
+  initializeAudio,
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const controllerRef = useRef<HTMLDivElement>(null);
@@ -174,6 +176,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     { id: "layer1", label: "Layer 1", color: "from-pink-500 to-rose-600" },
     { id: "layer2", label: "Layer 2", color: "from-blue-500 to-indigo-600" },
     { id: "goo", label: "Effects", color: "from-emerald-500 to-teal-600" },
+    { id: "audio", label: "Audio", color: "from-violet-500 to-purple-600" },
   ];
 
   // Animation for menu items
@@ -207,7 +210,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const randomColor1 = generateRandomColor();
     const randomColor2 = generateRandomColor();
 
-    setSettings({
+    setSettings((prev: any) => ({
       layer1: {
         spacing: 33,
         size: 19,
@@ -230,7 +233,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         postPixelate: 1,
         driftFriction: 0,
       },
-    });
+      touch: prev.touch,
+      audio: prev.audio,
+    }));
 
     toast({
       title: "Settings Reset",
@@ -485,6 +490,57 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           className="data-[state=checked]:bg-purple-700"
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {activeSection === "audio" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm text-zinc-200">
+                          Enable Audio
+                        </label>
+                        <Switch
+                          checked={settings.audio?.enabled ?? false}
+                          onCheckedChange={async (checked) => {
+                            handleUpdateSetting("audio", "enabled", checked);
+                            if (checked && initializeAudio) {
+                              await initializeAudio();
+                            }
+                          }}
+                          className="data-[state=checked]:bg-purple-700"
+                        />
+                      </div>
+
+                      {settings.audio?.enabled && (
+                        <div>
+                          <div className="flex justify-between">
+                            <label className="text-sm text-zinc-200">
+                              Master Volume
+                            </label>
+                            <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                              {Math.round(
+                                (settings.audio?.masterVolume ?? 0.3) * 100,
+                              )}
+                              %
+                            </span>
+                          </div>
+                          <Slider
+                            value={[
+                              (settings.audio?.masterVolume ?? 0.3) * 100,
+                            ]}
+                            min={0}
+                            max={100}
+                            step={1}
+                            onValueChange={(value) =>
+                              handleUpdateSetting(
+                                "audio",
+                                "masterVolume",
+                                value[0] / 100,
+                              )
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 

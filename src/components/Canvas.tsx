@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import ControlPanel from "./ControlPanel";
 import WebGLCanvas from "./WebGLCanvas";
 import GestureHandler from "./GestureHandler";
+import { useSonification } from "@/audio/useSonification";
 
 // Custom hook to throttle a function to limit how often it's called
 // defaultFps = 60 means the function can be called at most once every ~16.6ms
@@ -82,6 +83,14 @@ interface CanvasProps {
       enablePinchZoom: boolean;
       enablePinchRotate: boolean;
     };
+    audio: {
+      enabled: boolean;
+      masterVolume: number;
+      interactionRadius: number;
+      frequencyRange: { min: number; max: number };
+      rampTimeMs: number;
+      maxVoices: number;
+    };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
 }
@@ -112,6 +121,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [initialLayerRotation, setInitialLayerRotation] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
   const interactionLayerRef = useRef<HTMLDivElement>(null);
+
+  // Audio engine lifecycle
+  const { initializeAudio } = useSonification(settings.audio);
 
   // Drift refs
   const dragSamplesRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
@@ -519,6 +531,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
             setSettings={setSettings}
             getSnapshot={getSnapshot}
             onClose={() => setShowMenu(false)}
+            initializeAudio={initializeAudio}
           />
         )}
 

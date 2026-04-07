@@ -30,11 +30,21 @@ interface TouchSettings {
   enablePinchRotate: boolean;
 }
 
+interface AudioSettings {
+  enabled: boolean;
+  masterVolume: number;
+  interactionRadius: number;
+  frequencyRange: { min: number; max: number };
+  rampTimeMs: number;
+  maxVoices: number;
+}
+
 interface AppSettings {
   layer1: LayerSettings;
   layer2: LayerSettings;
   goo: GooSettings;
   touch: TouchSettings;
+  audio: AudioSettings;
 }
 
 // Function to generate random colors (same as in ControlPanel)
@@ -85,6 +95,14 @@ const Index = () => {
       enablePinchZoom: true,
       enablePinchRotate: true,
     },
+    audio: {
+      enabled: false,
+      masterVolume: 0.3,
+      interactionRadius: 50,
+      frequencyRange: { min: 80, max: 800 },
+      rampTimeMs: 40,
+      maxVoices: 128,
+    },
   });
 
   // Handle URL parameters on load
@@ -102,6 +120,15 @@ const Index = () => {
           touch: decodedSettings.touch || {
             enablePinchZoom: true,
             enablePinchRotate: true,
+          },
+          // Audio is never persisted in presets — always start silent
+          audio: {
+            enabled: false,
+            masterVolume: 0.3,
+            interactionRadius: 50,
+            frequencyRange: { min: 80, max: 800 },
+            rampTimeMs: 40,
+            maxVoices: 128,
           },
         } as AppSettings;
 
