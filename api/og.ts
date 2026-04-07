@@ -41,7 +41,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (blobStoreUrl) {
     // Use the raw preset string (same as upload key) — no encodeURIComponent
-    const imageUrl = `${blobStoreUrl}/og/${preset}.png`;
+    const imageUrl = `${blobStoreUrl}/og/${preset}.jpg`;
 
     try {
       const headResp = await fetch(imageUrl, { method: 'HEAD' });

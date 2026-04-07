@@ -1,11 +1,14 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
       "has": [{ "type": "query", "key": "p" }],
       "missing": [{ "type": "query", "key": "_r" }],
-      "destination": "/api/og"
-    },
+      "destination": "/api/og",
+      "statusCode": 307
+    }
+  ],
+  "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

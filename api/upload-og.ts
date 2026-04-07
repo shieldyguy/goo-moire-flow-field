@@ -36,9 +36,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Empty body' });
   }
 
-  const blob = await put(`og/${preset}.png`, buffer, {
+  const blob = await put(`og/${preset}.jpg`, buffer, {
     access: 'public',
-    contentType: 'image/png',
+    contentType: 'image/jpeg',
     allowOverwrite: true,
   });
 
