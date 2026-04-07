@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { encodePreset } from "@/lib/encoding/presetEncoder";
+import { uploadOgImage } from "@/lib/uploadOgImage";
 
 // Function to generate random colors
 const generateRandomColor = () => {
@@ -30,6 +31,7 @@ interface ControlPanelProps {
   onClose: () => void;
   settings: any;
   setSettings: React.Dispatch<React.SetStateAction<any>>;
+  getSnapshot?: () => HTMLCanvasElement | null;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -37,6 +39,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onClose,
   settings,
   setSettings,
+  getSnapshot,
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const controllerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +75,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             variant: "destructive",
           });
         });
+
+      // Fire-and-forget: upload OG preview image
+      const canvas = getSnapshot?.();
+      if (canvas) {
+        uploadOgImage(canvas, encoded).catch(() => {
+          // Silent failure — the URL is already on the clipboard
+        });
+      }
     } catch (error) {
       toast({
         title: "Export Failed",

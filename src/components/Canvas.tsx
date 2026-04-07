@@ -102,6 +102,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const combinedCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const webglCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -128,6 +129,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   // Adjust this number to change the max frame rate (higher = smoother, lower = more performance)
   const throttledSetOffset = useThrottle(setOffset, 15);
+
+  const getSnapshot = useCallback((): HTMLCanvasElement | null => {
+    return webglSupported ? webglCanvasRef.current : canvasRef.current;
+  }, [webglSupported]);
 
   // --- Drift functions ---
 
@@ -731,6 +736,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
         {/* WebGL Canvas */}
         {webglSupported && (
           <WebGLCanvas
+            ref={webglCanvasRef}
             width={dimensions.width}
             height={dimensions.height}
             settings={settings}
@@ -755,6 +761,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
             position={menuPosition}
             settings={settings}
             setSettings={setSettings}
+            getSnapshot={getSnapshot}
             onClose={() => setShowMenu(false)}
           />
         )}

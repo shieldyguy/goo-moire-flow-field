@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 
 interface WebGLCanvasProps {
   width: number;
@@ -36,13 +36,14 @@ interface WebGLCanvasProps {
   };
 }
 
-const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
+const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
   width,
   height,
   settings,
   offset,
-}) => {
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  useImperativeHandle(ref, () => canvasRef.current!, []);
   const dpr = window.devicePixelRatio || 1;
 
   // Helper function to draw concentric squares
@@ -216,6 +217,8 @@ const WebGLCanvas: React.FC<WebGLCanvasProps> = ({
       }}
     />
   );
-};
+});
+
+WebGLCanvas.displayName = 'WebGLCanvas';
 
 export default WebGLCanvas;
