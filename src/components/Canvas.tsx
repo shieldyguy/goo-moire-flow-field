@@ -122,8 +122,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [isRotating, setIsRotating] = useState(false);
   const interactionLayerRef = useRef<HTMLDivElement>(null);
 
-  // Audio engine lifecycle
-  const { initializeAudio } = useSonification(settings.audio);
+  // Audio engine — needs layer configs, offset, and canvas dimensions (CSS pixels)
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = dimensions.width / dpr;
+  const cssH = dimensions.height / dpr;
+  const { initializeAudio } = useSonification(
+    settings.audio,
+    settings.layer1,
+    settings.layer2,
+    offset,
+    cssW,
+    cssH,
+  );
 
   // Drift refs
   const dragSamplesRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
