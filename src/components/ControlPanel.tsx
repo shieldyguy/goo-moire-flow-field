@@ -598,7 +598,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <div>
                             <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">
-                                Freq Min
+                                Freq Base
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
                                 {settings.audio?.frequencyRange?.min ?? 80} Hz
@@ -616,8 +616,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   "audio",
                                   "frequencyRange",
                                   {
-                                    ...settings.audio?.frequencyRange,
                                     min: value[0],
+                                    max:
+                                      value[0] +
+                                      ((settings.audio?.frequencyRange?.max ??
+                                        800) -
+                                        (settings.audio?.frequencyRange?.min ??
+                                          80)),
                                   },
                                 )
                               }
@@ -627,26 +632,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <div>
                             <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">
-                                Freq Max
+                                Freq Range
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
-                                {settings.audio?.frequencyRange?.max ?? 800} Hz
+                                {Math.round(
+                                  (settings.audio?.frequencyRange?.max ?? 800) -
+                                    (settings.audio?.frequencyRange?.min ?? 80),
+                                )}{" "}
+                                Hz
                               </span>
                             </div>
                             <Slider
                               value={[
-                                settings.audio?.frequencyRange?.max ?? 800,
+                                (settings.audio?.frequencyRange?.max ?? 800) -
+                                  (settings.audio?.frequencyRange?.min ?? 80),
                               ]}
-                              min={100}
-                              max={8000}
+                              min={1}
+                              max={4000}
                               step={1}
                               onValueChange={(value) =>
                                 handleUpdateSetting(
                                   "audio",
                                   "frequencyRange",
                                   {
-                                    ...settings.audio?.frequencyRange,
-                                    max: value[0],
+                                    min:
+                                      settings.audio?.frequencyRange?.min ?? 80,
+                                    max:
+                                      (settings.audio?.frequencyRange?.min ??
+                                        80) + value[0],
                                   },
                                 )
                               }
