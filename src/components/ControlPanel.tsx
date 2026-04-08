@@ -13,7 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-import { encodePreset } from "@/lib/encoding/presetEncoder";
+import { encodePreset, MovementData } from "@/lib/encoding/presetEncoder";
 import { uploadOgImage } from "@/lib/uploadOgImage";
 
 // Function to generate random colors
@@ -32,6 +32,7 @@ interface ControlPanelProps {
   settings: any;
   setSettings: React.Dispatch<React.SetStateAction<any>>;
   getSnapshot?: () => HTMLCanvasElement | null;
+  getMovement?: () => MovementData;
   initializeAudio?: () => Promise<boolean>;
 }
 
@@ -41,6 +42,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   settings,
   setSettings,
   getSnapshot,
+  getMovement,
   initializeAudio,
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -59,7 +61,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Handle export functionality
   const handleExport = () => {
     try {
-      const encoded = encodePreset(settings);
+      const movement = getMovement?.();
+      const encoded = encodePreset(settings, movement);
       const url = `${window.location.origin}${window.location.pathname}?p=${encoded}`;
 
       navigator.clipboard

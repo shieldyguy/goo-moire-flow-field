@@ -9,6 +9,7 @@ import ControlPanel from "./ControlPanel";
 import WebGLCanvas from "./WebGLCanvas";
 import GestureHandler from "./GestureHandler";
 import { useSonification } from "@/audio/useSonification";
+import type { MovementData } from "@/lib/encoding/presetEncoder";
 
 // Custom hook to throttle a function to limit how often it's called
 // defaultFps = 60 means the function can be called at most once every ~16.6ms
@@ -93,6 +94,7 @@ interface CanvasProps {
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
+  initialMovement?: MovementData;
 }
 
 // Function to generate random colors (same as in ControlPanel and Index)
@@ -105,7 +107,7 @@ const generateRandomColor = () => {
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
-const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
+const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement }) => {
   const webglCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -157,6 +159,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const getSnapshot = useCallback((): HTMLCanvasElement | null => {
     return webglCanvasRef.current;
+  }, []);
+
+  // Expose current movement state so ControlPanel can embed it in presets
+  const getMovement = useCallback((): MovementData => {
+    const vel = driftVelocityRef.current;
+    const off = offsetRef.current;
+    return {
+      offsetX: off.x,
+      offsetY: off.y,
+      velocityX: vel.vx,
+      velocityY: vel.vy,
+    };
   }, []);
 
   // --- Drift functions ---
@@ -267,6 +281,21 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       }
     };
   }, []);
+
+  // Apply initial movement from a loaded preset (offset + kick off drift)
+  const initialMovementApplied = useRef(false);
+  useEffect(() => {
+    if (initialMovement && !initialMovementApplied.current) {
+      initialMovementApplied.current = true;
+      const off = { x: initialMovement.offsetX, y: initialMovement.offsetY };
+      setOffset(off);
+      offsetRef.current = off;
+      if (Math.hypot(initialMovement.velocityX, initialMovement.velocityY) > 0.5) {
+        startDrift(initialMovement.velocityX, initialMovement.velocityY);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMovement]);
 
   // Handle resize and device pixel ratio
   useEffect(() => {
@@ -564,6 +593,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
             settings={settings}
             setSettings={setSettings}
             getSnapshot={getSnapshot}
+            getMovement={getMovement}
             onClose={() => setShowMenu(false)}
             initializeAudio={initializeAudio}
           />
