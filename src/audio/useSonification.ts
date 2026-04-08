@@ -14,6 +14,7 @@ interface AudioSettings {
   rampTimeMs: number;
   maxVoices: number;
   luminanceInfluence: number; // 0 = brightness doesn't affect volume, 1 = full scaling
+  colorSamplePoint: "moving" | "midpoint";
 }
 
 interface LayerConfig {
@@ -164,6 +165,7 @@ export function useSonification(
     const dpr = window.devicePixelRatio || 1;
     const pixels = getCanvasPixels(canvasRef);
     const lumInfluence = audioSettings.luminanceInfluence ?? 1;
+    const samplePoint = audioSettings.colorSamplePoint ?? "moving";
 
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
@@ -185,6 +187,7 @@ export function useSonification(
         pixels,
         dpr,
         lumInfluence,
+        samplePoint,
       );
     } else if (bothLines) {
       allInteractions = computeLineInteractions(
@@ -199,6 +202,7 @@ export function useSonification(
         pixels,
         dpr,
         lumInfluence,
+        samplePoint,
       );
     } else {
       const dotLayer = layer1.type === "dots" ? layer1 : layer2;
@@ -225,6 +229,7 @@ export function useSonification(
         pixels,
         dpr,
         lumInfluence,
+        samplePoint,
       );
     }
 
@@ -308,6 +313,7 @@ function computeDotInteractions(
   pixels: ImageData | null,
   dpr: number,
   lumInfluence: number,
+  colorSamplePoint: "moving" | "midpoint",
 ): Array<{ key: string; gain: number; freq: number }> {
   const gridA = extractDotPositions(layer1, 0, 0, canvasW, canvasH, radius);
   const gridB = extractDotPositions(
@@ -339,6 +345,8 @@ function computeDotInteractions(
     hash.queryNeighbors(ax, ay, neighbors);
 
     let bestGain = 0;
+    let bestBx = 0;
+    let bestBy = 0;
 
     for (let n = 0; n < neighbors.length; n++) {
       const j = neighbors[n];
@@ -353,14 +361,24 @@ function computeDotInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
+          bestBx = bx;
+          bestBy = by;
         }
       }
     }
 
     if (bestGain > 0) {
-      const color = pixels ? sampleColor(pixels, ax, ay, dpr) : null;
+      // Sample color at moving dot (grid B) or midpoint between A and B
+      let sx: number, sy: number;
+      if (colorSamplePoint === "midpoint") {
+        sx = (ax + bestBx) / 2;
+        sy = (ay + bestBy) / 2;
+      } else {
+        sx = bestBx;
+        sy = bestBy;
+      }
+      const color = pixels ? sampleColor(pixels, sx, sy, dpr) : null;
       if (!color) continue;
-      // Luminance scales the proximity gain — dark areas are quiet
       const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
       if (finalGain < 0.001) continue;
       const freq = hueToFreq(color.hue, freqMin, freqRatio);
@@ -385,6 +403,7 @@ function computeLineInteractions(
   pixels: ImageData | null,
   dpr: number,
   lumInfluence: number,
+  colorSamplePoint: "moving" | "midpoint",
 ): Array<{ key: string; gain: number; freq: number }> {
   const linesA = extractLinePositions(layer1, 0, 0, canvasW, canvasH, radius);
   const linesB = extractLinePositions(
@@ -398,9 +417,13 @@ function computeLineInteractions(
 
   if (linesA.count === 0 || linesB.count === 0) return [];
 
-  const sortedB: Array<{ perp: number; idx: number }> = [];
+  const sortedB: Array<{ perp: number; worldX: number; idx: number }> = [];
   for (let j = 0; j < linesB.count; j++) {
-    sortedB.push({ perp: linesB.perpPositions[j], idx: j });
+    sortedB.push({
+      perp: linesB.perpPositions[j],
+      worldX: linesB.worldX[j],
+      idx: j,
+    });
   }
   sortedB.sort((a, b) => a.perp - b.perp);
 
@@ -422,6 +445,7 @@ function computeLineInteractions(
     }
 
     let bestGain = 0;
+    let bestWxB = 0;
 
     for (
       let k = Math.max(0, lo - 2);
@@ -434,12 +458,16 @@ function computeLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
+          bestWxB = sortedB[k].worldX;
         }
       }
     }
 
     if (bestGain > 0) {
-      const sampleX = Math.max(0, Math.min(canvasW, wxA));
+      const sampleX =
+        colorSamplePoint === "midpoint"
+          ? Math.max(0, Math.min(canvasW, (wxA + bestWxB) / 2))
+          : Math.max(0, Math.min(canvasW, bestWxB));
       const sampleY = canvasH / 2;
       const color = pixels ? sampleColor(pixels, sampleX, sampleY, dpr) : null;
       if (!color) continue;
@@ -471,6 +499,7 @@ function computeDotLineInteractions(
   pixels: ImageData | null,
   dpr: number,
   lumInfluence: number,
+  _colorSamplePoint: "moving" | "midpoint", // not used for dot-line (dot IS the interaction point)
 ): Array<{ key: string; gain: number; freq: number }> {
   const dots = extractDotPositions(
     dotLayer,

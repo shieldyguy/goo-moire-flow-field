@@ -91,6 +91,7 @@ interface CanvasProps {
       rampTimeMs: number;
       maxVoices: number;
       luminanceInfluence: number;
+      colorSamplePoint: "moving" | "midpoint";
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;

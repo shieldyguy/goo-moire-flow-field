@@ -38,6 +38,7 @@ interface AudioSettings {
   rampTimeMs: number;
   maxVoices: number;
   luminanceInfluence: number;
+  colorSamplePoint: "moving" | "midpoint";
 }
 
 interface AppSettings {
@@ -104,6 +105,7 @@ const Index = () => {
       rampTimeMs: 40,
       maxVoices: 128,
       luminanceInfluence: 1,
+      colorSamplePoint: "moving" as const,
     },
   });
 
@@ -132,6 +134,7 @@ const Index = () => {
             rampTimeMs: 40,
             maxVoices: 128,
       luminanceInfluence: 1,
+      colorSamplePoint: "moving" as const,
           },
         } as AppSettings;
 
