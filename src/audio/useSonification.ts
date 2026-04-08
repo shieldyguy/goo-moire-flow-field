@@ -122,6 +122,9 @@ export function useSonification(
     const engine = getEngine();
     try {
       await engine.initialize();
+      // Sync master volume to the current setting immediately —
+      // the useEffect won't fire if the value hasn't changed since mount
+      engine.setMasterVolume(audioSettings.masterVolume);
 
       if (!hasPlayedTestTone.current) {
         engine.playTestTone();
@@ -133,7 +136,7 @@ export function useSonification(
       console.error("AudioEngine failed to initialize:", e);
       return false;
     }
-  }, [getEngine]);
+  }, [getEngine, audioSettings.masterVolume]);
 
   // Sync master volume
   useEffect(() => {
