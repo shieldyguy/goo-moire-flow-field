@@ -94,21 +94,10 @@ export function useSonification(
 
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
-    // Branch based on layer type — if either layer is lines, use line mode
-    const useLines = layer1.type === "lines" || layer2.type === "lines";
+    const bothDots = layer1.type === "dots" && layer2.type === "dots";
+    const bothLines = layer1.type === "lines" && layer2.type === "lines";
 
-    if (useLines) {
-      allInteractions = computeLineInteractions(
-        layer1,
-        layer2,
-        offset,
-        canvasW,
-        canvasH,
-        radius,
-        freqMin,
-        freqRatio,
-      );
-    } else {
+    if (bothDots) {
       allInteractions = computeDotInteractions(
         layer1,
         layer2,
@@ -120,6 +109,42 @@ export function useSonification(
         freqRatio,
         spatialHashRef,
         neighborsBuffer,
+      );
+    } else if (bothLines) {
+      allInteractions = computeLineInteractions(
+        layer1,
+        layer2,
+        offset,
+        canvasW,
+        canvasH,
+        radius,
+        freqMin,
+        freqRatio,
+      );
+    } else {
+      // Mixed: one layer is dots, the other is lines.
+      // Dots drive the voices; lines provide the interaction surface.
+      const dotLayer = layer1.type === "dots" ? layer1 : layer2;
+      const lineLayer = layer1.type === "dots" ? layer2 : layer1;
+      const dotOffset =
+        layer1.type === "dots"
+          ? { x: 0, y: 0 }
+          : { x: offset.x, y: offset.y };
+      const lineOffset =
+        layer1.type === "dots"
+          ? { x: offset.x, y: offset.y }
+          : { x: 0, y: 0 };
+
+      allInteractions = computeDotLineInteractions(
+        dotLayer,
+        dotOffset,
+        lineLayer,
+        lineOffset,
+        canvasW,
+        canvasH,
+        radius,
+        freqMin,
+        freqRatio,
       );
     }
 
@@ -312,6 +337,107 @@ function computeLineInteractions(
 
     if (bestGain > 0) {
       interactions.push({ key: `L${i}`, gain: bestGain, freq: bestFreq });
+    }
+  }
+
+  return interactions;
+}
+
+// ─── Dot-line mixed interaction computation ───
+// Dots drive the voices. For each dot, compute its perpendicular distance
+// to the nearest line in the other layer. This maps to what you see:
+// dots light up as they cross or approach a line.
+
+function computeDotLineInteractions(
+  dotLayer: LayerConfig,
+  dotOffset: { x: number; y: number },
+  lineLayer: LayerConfig,
+  lineOffset: { x: number; y: number },
+  canvasW: number,
+  canvasH: number,
+  radius: number,
+  freqMin: number,
+  freqRatio: number,
+): Array<{ key: string; gain: number; freq: number }> {
+  const dots = extractDotPositions(
+    dotLayer,
+    dotOffset.x,
+    dotOffset.y,
+    canvasW,
+    canvasH,
+    radius,
+  );
+  const lines = extractLinePositions(
+    lineLayer,
+    lineOffset.x,
+    lineOffset.y,
+    canvasW,
+    canvasH,
+    radius,
+  );
+
+  if (dots.count === 0 || lines.count === 0) return [];
+
+  // The line's normal direction — all lines are parallel, so we project
+  // each dot onto the shared normal axis and compare with line perps.
+  const lineRad = (lineLayer.rotation * Math.PI) / 180;
+  const nx = -Math.sin(lineRad);
+  const ny = Math.cos(lineRad);
+
+  const centerX = canvasW / 2;
+  const centerY = canvasH / 2;
+
+  // Sort line perpendicular positions for binary search
+  const sortedLines: Array<{ perp: number; idx: number }> = [];
+  for (let j = 0; j < lines.count; j++) {
+    sortedLines.push({ perp: lines.perpPositions[j], idx: j });
+  }
+  sortedLines.sort((a, b) => a.perp - b.perp);
+
+  const interactions: Array<{ key: string; gain: number; freq: number }> = [];
+
+  for (let i = 0; i < dots.count; i++) {
+    const dx = dots.positions[i * 2];
+    const dy = dots.positions[i * 2 + 1];
+
+    // Project dot onto the line's normal axis (same coord system as line perps)
+    const dotPerp = (dx - centerX) * nx + (dy - centerY) * ny;
+
+    // Binary search for nearest line
+    let lo = 0;
+    let hi = sortedLines.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sortedLines[mid].perp < dotPerp) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    // Check nearest few lines
+    let bestGain = 0;
+
+    for (
+      let k = Math.max(0, lo - 2);
+      k < Math.min(sortedLines.length, lo + 3);
+      k++
+    ) {
+      const dist = Math.abs(dotPerp - sortedLines[k].perp);
+
+      if (dist < radius) {
+        const gain = 1 - dist / radius;
+        if (gain > bestGain) {
+          bestGain = gain;
+        }
+      }
+    }
+
+    if (bestGain > 0) {
+      // Frequency from the dot's world-space x position
+      const normX = Math.max(0, Math.min(1, dx / canvasW));
+      const freq = freqMin * Math.pow(freqRatio, normX);
+      interactions.push({ key: `M${i}`, gain: bestGain, freq });
     }
   }
 
