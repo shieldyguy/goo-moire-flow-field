@@ -104,6 +104,7 @@ var WebGLImageFilter = window.WebGLImageFilter = function (params) {
 	this.apply = function( image ) {
 		_resize( image.width, image.height );
 		_drawCount = 0;
+		_currentFramebufferIndex = -1;
 
 		// Create the texture for the input image if we haven't yet
 		if (!_sourceTexture)

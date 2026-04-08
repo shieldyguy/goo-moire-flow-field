@@ -22,8 +22,10 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
   useEffect(() => {
     if (!containerRef.current || !window.Hammer) return;
     
-    // Simple Hammer instance
-    const hammer = new window.Hammer(containerRef.current);
+    // Touch-only Hammer instance — mouse double-click is handled natively in Canvas
+    const hammer = new window.Hammer(containerRef.current, {
+      inputClass: window.Hammer.TouchInput,
+    });
     
     // Disable single-finger pan — native touch/mouse handlers in Canvas handle
     // drag directly for zero-latency response and smooth drift handoff.

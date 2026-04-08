@@ -254,8 +254,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
-    // Close menu if it's open and we click outside
-    if (showMenu) {
+    // Close menu if it's open and we click outside (use ref to avoid stale closure)
+    if (showMenuRef.current) {
       setShowMenu(false);
       return;
     }
@@ -278,10 +278,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     lastClickTimeRef.current = currentTime;
   };
 
+  // Native dblclick as a reliable fallback for desktop double-click detection
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!showMenuRef.current) {
+      setShowMenu(true);
+      setMenuPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
   const hasDragMovedRef = useRef(false);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
+    if (!isDraggingRef.current) return;
 
     // Stop drift on first actual move, not on mousedown (preserves drift on double-click)
     if (!hasDragMovedRef.current) {
@@ -301,7 +309,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
   };
 
   const handleMouseUp = () => {
-    if (isDragging && hasDragMovedRef.current) {
+    if (isDraggingRef.current && hasDragMovedRef.current) {
       releaseDrift();
     }
     setIsDragging(false);
@@ -492,6 +500,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onDoubleClick={handleDoubleClick}
         />
 
         {/* Control Panel */}

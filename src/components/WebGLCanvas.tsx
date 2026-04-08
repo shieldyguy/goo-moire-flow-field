@@ -50,6 +50,11 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
   const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const filterRef = useRef<any>(null);
 
+  // 24 FPS draw throttle
+  const lastDrawTimeRef = useRef(0);
+  const pendingDrawRef = useRef<number | null>(null);
+  const FRAME_INTERVAL = 1000 / 24;
+
   // Helper function to draw concentric squares
   const drawConcentricSquares = (
     ctx: CanvasRenderingContext2D,
@@ -176,18 +181,27 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
         tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.drawImage(canvas, 0, 0);
 
-        const filter = new window.WebGLImageFilter();
+        if (!filterRef.current) {
+          filterRef.current = new window.WebGLImageFilter();
+        }
+        const filter = filterRef.current;
 
-        filter.addFilter("pixelate", settings.goo.prePixelate);
-        filter.addFilter("blur", settings.goo.blur);
-        filter.addFilter("blur", settings.goo.blur);
-        filter.addFilter("blur", settings.goo.blur);
-        filter.addFilter("blur", settings.goo.blur);
+        filter.reset();
+        // Scale blur and pixelate by DPR so the goo effect looks the same
+        // regardless of screen resolution (dots/spacing are already DPR-scaled)
+        const scaledBlur = settings.goo.blur * dpr;
+        const scaledPrePixelate = settings.goo.prePixelate * dpr;
+        const scaledPostPixelate = settings.goo.postPixelate * dpr;
+        filter.addFilter("pixelate", scaledPrePixelate);
+        filter.addFilter("blur", scaledBlur);
+        filter.addFilter("blur", scaledBlur);
+        filter.addFilter("blur", scaledBlur);
+        filter.addFilter("blur", scaledBlur);
         const thresholdFactor = settings.goo.threshold / 128;
         filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);
         filter.addFilter("polaroid");
-        filter.addFilter("pixelate", settings.goo.postPixelate);
+        filter.addFilter("pixelate", scaledPostPixelate);
 
         const result = filter.apply(tempCanvas);
         ctx.clearRect(0, 0, width, height);
@@ -206,10 +220,36 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
     draw();
   }, []);
 
-  // Update on changes
+  // Update on changes — throttled to 24 FPS
   useEffect(() => {
-    draw();
+    const now = performance.now();
+    const elapsed = now - lastDrawTimeRef.current;
+
+    if (elapsed >= FRAME_INTERVAL) {
+      if (pendingDrawRef.current !== null) {
+        clearTimeout(pendingDrawRef.current);
+        pendingDrawRef.current = null;
+      }
+      lastDrawTimeRef.current = now;
+      draw();
+    } else if (pendingDrawRef.current === null) {
+      const remaining = FRAME_INTERVAL - elapsed;
+      pendingDrawRef.current = window.setTimeout(() => {
+        pendingDrawRef.current = null;
+        lastDrawTimeRef.current = performance.now();
+        draw();
+      }, remaining);
+    }
   }, [settings, offset, width, height]);
+
+  // Cleanup throttle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingDrawRef.current !== null) {
+        clearTimeout(pendingDrawRef.current);
+      }
+    };
+  }, []);
 
   return (
     <canvas
