@@ -119,11 +119,11 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     const tau = config.rampTimeMs / 1000;
 
-    // Update the normalization gain node based on voice count.
-    // Using setTargetAtTime for a smooth exponential approach — no clicks
-    // when voice count fluctuates frame to frame.
+    // Normalize by 1/N so the sum of all voices never exceeds 1.0 before
+    // master gain. sqrt(N) is too weak — dense grids produce correlated
+    // sines at similar frequencies that sum nearly linearly.
     const voiceCount = Math.max(targets.size, 1);
-    const normValue = 1 / Math.sqrt(voiceCount);
+    const normValue = 1 / voiceCount;
     this.normGain.gain.setTargetAtTime(normValue, now, tau);
 
     // Update or create voices for all active targets
