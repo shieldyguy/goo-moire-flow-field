@@ -37,6 +37,7 @@ interface AudioSettings {
   frequencyRange: { min: number; max: number };
   rampTimeMs: number;
   maxVoices: number;
+  luminanceInfluence: number;
 }
 
 interface AppSettings {
@@ -102,6 +103,7 @@ const Index = () => {
       frequencyRange: { min: 80, max: 800 },
       rampTimeMs: 40,
       maxVoices: 128,
+      luminanceInfluence: 1,
     },
   });
 
@@ -129,6 +131,7 @@ const Index = () => {
             frequencyRange: { min: 80, max: 800 },
             rampTimeMs: 40,
             maxVoices: 128,
+      luminanceInfluence: 1,
           },
         } as AppSettings;
 

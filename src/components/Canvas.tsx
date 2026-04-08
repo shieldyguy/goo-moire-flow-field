@@ -90,6 +90,7 @@ interface CanvasProps {
       frequencyRange: { min: number; max: number };
       rampTimeMs: number;
       maxVoices: number;
+      luminanceInfluence: number;
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;

@@ -13,6 +13,7 @@ interface AudioSettings {
   frequencyRange: { min: number; max: number };
   rampTimeMs: number;
   maxVoices: number;
+  luminanceInfluence: number; // 0 = brightness doesn't affect volume, 1 = full scaling
 }
 
 interface LayerConfig {
@@ -60,21 +61,20 @@ function getCanvasPixels(
 }
 
 /**
- * Sample the hue at a CSS-pixel position from pre-fetched ImageData.
- * Returns hue as 0-1, or -1 if the pixel is too dark to have meaningful hue.
+ * Sample hue and luminance at a CSS-pixel position from pre-fetched ImageData.
+ * Returns { hue: 0-1, luminance: 0-1 }, or null if out of bounds.
  */
-function sampleHue(
+function sampleColor(
   imageData: ImageData,
   cssX: number,
   cssY: number,
   dpr: number,
-): number {
-  // Convert CSS pixels to canvas pixels
+): { hue: number; luminance: number } | null {
   const px = Math.round(cssX * dpr);
   const py = Math.round(cssY * dpr);
 
   if (px < 0 || px >= imageData.width || py < 0 || py >= imageData.height) {
-    return -1;
+    return null;
   }
 
   const idx = (py * imageData.width + px) * 4;
@@ -82,11 +82,10 @@ function sampleHue(
   const g = imageData.data[idx + 1];
   const b = imageData.data[idx + 2];
 
-  // If pixel is very dark, hue is meaningless
-  const brightness = Math.max(r, g, b);
-  if (brightness < 10) return -1;
+  // Perceptual luminance (Rec. 709)
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
-  return rgbToHue(r, g, b);
+  return { hue: rgbToHue(r, g, b), luminance };
 }
 
 /**
@@ -164,6 +163,7 @@ export function useSonification(
     // Grab canvas pixels once for color-based frequency mapping
     const dpr = window.devicePixelRatio || 1;
     const pixels = getCanvasPixels(canvasRef);
+    const lumInfluence = audioSettings.luminanceInfluence ?? 1;
 
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
@@ -184,6 +184,7 @@ export function useSonification(
         neighborsBuffer,
         pixels,
         dpr,
+        lumInfluence,
       );
     } else if (bothLines) {
       allInteractions = computeLineInteractions(
@@ -197,10 +198,9 @@ export function useSonification(
         freqRatio,
         pixels,
         dpr,
+        lumInfluence,
       );
     } else {
-      // Mixed: one layer is dots, the other is lines.
-      // Dots drive the voices; lines provide the interaction surface.
       const dotLayer = layer1.type === "dots" ? layer1 : layer2;
       const lineLayer = layer1.type === "dots" ? layer2 : layer1;
       const dotOffset =
@@ -224,6 +224,7 @@ export function useSonification(
         freqRatio,
         pixels,
         dpr,
+        lumInfluence,
       );
     }
 
@@ -270,6 +271,19 @@ export function useSonification(
 // ─── Dot-mode interaction computation ───
 
 /**
+ * Apply luminance as a gain multiplier.
+ * influence=0: luminance has no effect. influence=1: full scaling.
+ */
+function applyLuminance(
+  gain: number,
+  luminance: number,
+  influence: number,
+): number {
+  // lerp between unscaled gain and luminance-scaled gain
+  return gain * (1 - influence + influence * luminance);
+}
+
+/**
  * Map a hue (0-1) to a frequency using log scaling.
  */
 function hueToFreq(
@@ -293,6 +307,7 @@ function computeDotInteractions(
   neighborsBuffer: React.MutableRefObject<number[]>,
   pixels: ImageData | null,
   dpr: number,
+  lumInfluence: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const gridA = extractDotPositions(layer1, 0, 0, canvasW, canvasH, radius);
   const gridB = extractDotPositions(
@@ -343,11 +358,13 @@ function computeDotInteractions(
     }
 
     if (bestGain > 0) {
-      // Frequency from canvas pixel color — dark pixels produce no voice
-      const hue = pixels ? sampleHue(pixels, ax, ay, dpr) : -1;
-      if (hue < 0) continue;
-      const freq = hueToFreq(hue, freqMin, freqRatio);
-      interactions.push({ key: `D${i}`, gain: bestGain, freq });
+      const color = pixels ? sampleColor(pixels, ax, ay, dpr) : null;
+      if (!color) continue;
+      // Luminance scales the proximity gain — dark areas are quiet
+      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
+      if (finalGain < 0.001) continue;
+      const freq = hueToFreq(color.hue, freqMin, freqRatio);
+      interactions.push({ key: `D${i}`, gain: finalGain, freq });
     }
   }
 
@@ -367,6 +384,7 @@ function computeLineInteractions(
   freqRatio: number,
   pixels: ImageData | null,
   dpr: number,
+  lumInfluence: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const linesA = extractLinePositions(layer1, 0, 0, canvasW, canvasH, radius);
   const linesB = extractLinePositions(
@@ -421,13 +439,14 @@ function computeLineInteractions(
     }
 
     if (bestGain > 0) {
-      // Sample color at line center — dark pixels produce no voice
       const sampleX = Math.max(0, Math.min(canvasW, wxA));
       const sampleY = canvasH / 2;
-      const hue = pixels ? sampleHue(pixels, sampleX, sampleY, dpr) : -1;
-      if (hue < 0) continue;
-      const freq = hueToFreq(hue, freqMin, freqRatio);
-      interactions.push({ key: `L${i}`, gain: bestGain, freq });
+      const color = pixels ? sampleColor(pixels, sampleX, sampleY, dpr) : null;
+      if (!color) continue;
+      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
+      if (finalGain < 0.001) continue;
+      const freq = hueToFreq(color.hue, freqMin, freqRatio);
+      interactions.push({ key: `L${i}`, gain: finalGain, freq });
     }
   }
 
@@ -451,6 +470,7 @@ function computeDotLineInteractions(
   freqRatio: number,
   pixels: ImageData | null,
   dpr: number,
+  lumInfluence: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const dots = extractDotPositions(
     dotLayer,
@@ -529,11 +549,12 @@ function computeDotLineInteractions(
     }
 
     if (bestGain > 0) {
-      // Frequency from canvas pixel color at the dot's position
-      const hue = pixels ? sampleHue(pixels, dx, dy, dpr) : -1;
-      if (hue < 0) continue; // dark pixel — no voice
-      const freq = hueToFreq(hue, freqMin, freqRatio);
-      interactions.push({ key: `M${i}`, gain: bestGain, freq });
+      const color = pixels ? sampleColor(pixels, dx, dy, dpr) : null;
+      if (!color) continue;
+      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
+      if (finalGain < 0.001) continue;
+      const freq = hueToFreq(color.hue, freqMin, freqRatio);
+      interactions.push({ key: `M${i}`, gain: finalGain, freq });
     }
   }
 
