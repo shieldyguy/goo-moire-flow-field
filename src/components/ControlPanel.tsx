@@ -598,58 +598,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <div>
                             <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">
-                                Brightness → Volume
-                              </label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
-                                {Math.round(
-                                  (settings.audio?.luminanceInfluence ?? 1) *
-                                    100,
-                                )}
-                                %
-                              </span>
-                            </div>
-                            <Slider
-                              value={[
-                                (settings.audio?.luminanceInfluence ?? 1) * 100,
-                              ]}
-                              min={0}
-                              max={100}
-                              step={1}
-                              onValueChange={(value) =>
-                                handleUpdateSetting(
-                                  "audio",
-                                  "luminanceInfluence",
-                                  value[0] / 100,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <label className="text-sm text-zinc-200">
-                              Color Sample
-                            </label>
-                            <select
-                              value={
-                                settings.audio?.colorSamplePoint ?? "moving"
-                              }
-                              onChange={(e) =>
-                                handleUpdateSetting(
-                                  "audio",
-                                  "colorSamplePoint",
-                                  e.target.value,
-                                )
-                              }
-                              className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono"
-                            >
-                              <option value="moving">Moving Layer</option>
-                              <option value="midpoint">Midpoint</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">
                                 Freq Min
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">

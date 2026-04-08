@@ -90,8 +90,6 @@ interface CanvasProps {
       frequencyRange: { min: number; max: number };
       rampTimeMs: number;
       maxVoices: number;
-      luminanceInfluence: number;
-      colorSamplePoint: "moving" | "midpoint";
     };
   };
   setSettings: React.Dispatch<React.SetStateAction<any>>;
@@ -135,7 +133,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     offset,
     cssW,
     cssH,
-    webglCanvasRef,
+    settings.goo,
   );
 
   // Drift refs

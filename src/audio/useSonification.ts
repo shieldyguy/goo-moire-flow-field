@@ -13,8 +13,6 @@ interface AudioSettings {
   frequencyRange: { min: number; max: number };
   rampTimeMs: number;
   maxVoices: number;
-  luminanceInfluence: number; // 0 = brightness doesn't affect volume, 1 = full scaling
-  colorSamplePoint: "moving" | "midpoint";
 }
 
 interface LayerConfig {
@@ -24,76 +22,79 @@ interface LayerConfig {
   type: string;
 }
 
-/**
- * Convert RGB to hue (0-1). Returns 0 for achromatic pixels.
- */
-function rgbToHue(r: number, g: number, b: number): number {
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
+interface GooConfig {
+  blur: number;
+  prePixelate: number;
+  enabled: boolean;
+}
 
-  if (delta === 0) return 0; // achromatic
-
-  let h: number;
-  if (max === r) {
-    h = ((g - b) / delta) % 6;
-  } else if (max === g) {
-    h = (b - r) / delta + 2;
-  } else {
-    h = (r - g) / delta + 4;
+// Major scale intervals in semitones: W W H W W W H
+// Cumulative: 0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24...
+const MAJOR_SCALE_SEMITONES: number[] = [];
+{
+  const pattern = [0, 2, 4, 5, 7, 9, 11];
+  // Build 10 octaves worth
+  for (let octave = 0; octave < 10; octave++) {
+    for (const s of pattern) {
+      MAJOR_SCALE_SEMITONES.push(octave * 12 + s);
+    }
   }
-
-  h /= 6;
-  if (h < 0) h += 1;
-  return h;
 }
 
 /**
- * Grab the full canvas ImageData once. Returns null if canvas isn't available.
+ * Quantize a frequency to the nearest note in the major scale,
+ * anchored at freqMin.
  */
-function getCanvasPixels(
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
-): ImageData | null {
-  const canvas = canvasRef.current;
-  if (!canvas) return null;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+function quantizeToMajorScale(freq: number, freqMin: number): number {
+  // How many semitones above freqMin?
+  const semitones = 12 * Math.log2(freq / freqMin);
+  if (semitones <= 0) return freqMin;
+
+  // Find nearest major scale semitone
+  let best = 0;
+  let bestDist = Infinity;
+  for (const s of MAJOR_SCALE_SEMITONES) {
+    const dist = Math.abs(semitones - s);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = s;
+    }
+    if (s > semitones + 6) break; // early exit
+  }
+
+  return freqMin * Math.pow(2, best / 12);
 }
 
 /**
- * Sample hue and luminance at a CSS-pixel position from pre-fetched ImageData.
- * Returns { hue: 0-1, luminance: 0-1 }, or null if out of bounds.
+ * Map y-position to frequency (log scale), then quantize to major scale.
+ * Top of canvas = high freq, bottom = low freq.
  */
-function sampleColor(
-  imageData: ImageData,
-  cssX: number,
-  cssY: number,
-  dpr: number,
-): { hue: number; luminance: number } | null {
-  const px = Math.round(cssX * dpr);
-  const py = Math.round(cssY * dpr);
+function yToFreq(
+  y: number,
+  canvasH: number,
+  freqMin: number,
+  freqRatio: number,
+): number {
+  const normalized = 1 - Math.max(0, Math.min(1, y / canvasH)); // top=1, bottom=0
+  const rawFreq = freqMin * Math.pow(freqRatio, normalized);
+  return quantizeToMajorScale(rawFreq, freqMin);
+}
 
-  if (px < 0 || px >= imageData.width || py < 0 || py >= imageData.height) {
-    return null;
-  }
-
-  const idx = (py * imageData.width + px) * 4;
-  const r = imageData.data[idx];
-  const g = imageData.data[idx + 1];
-  const b = imageData.data[idx + 2];
-
-  // Perceptual luminance (Rec. 709)
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-
-  return { hue: rgbToHue(r, g, b), luminance };
+/**
+ * Quantize a position to a grid, simulating pre-pixelate's chunking effect.
+ * When prePixelate=1 (off), returns the position unchanged.
+ */
+function quantizePosition(value: number, prePixelate: number): number {
+  if (prePixelate <= 1) return value;
+  return Math.floor(value / prePixelate) * prePixelate + prePixelate / 2;
 }
 
 /**
  * React hook that manages the full sonification pipeline:
  * - For dots: 2D spatial hash proximity between dot grids
  * - For lines: 1D perpendicular distance between line grids
- * - Frequency derived from canvas pixel color (hue) at each interaction point
+ * - Frequency from y-position, quantized to major scale
+ * - Blur widens interaction radius, pre-pixelate quantizes positions
  */
 export function useSonification(
   audioSettings: AudioSettings,
@@ -102,7 +103,7 @@ export function useSonification(
   offset: { x: number; y: number },
   canvasW: number,
   canvasH: number,
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  goo: GooConfig,
 ) {
   const engineRef = useRef<AudioEngine | null>(null);
   const hasPlayedTestTone = useRef(false);
@@ -156,16 +157,18 @@ export function useSonification(
     if (!engine || !engine.isReady || !audioSettings.enabled) return;
     if (canvasW === 0 || canvasH === 0) return;
 
-    const radius =
+    // Base interaction radius from dot sizes
+    let radius =
       ((layer1.size + layer2.size) / 2) * audioSettings.interactionRadius;
+
+    // Blur widens the interaction radius — same way it visually smears dots
+    if (goo.enabled && goo.blur > 1) {
+      radius *= 1 + goo.blur * 0.15;
+    }
+
     const { min: freqMin, max: freqMax } = audioSettings.frequencyRange;
     const freqRatio = freqMax / freqMin;
-
-    // Grab canvas pixels once for color-based frequency mapping
-    const dpr = window.devicePixelRatio || 1;
-    const pixels = getCanvasPixels(canvasRef);
-    const lumInfluence = audioSettings.luminanceInfluence ?? 1;
-    const samplePoint = audioSettings.colorSamplePoint ?? "moving";
+    const prePixelate = goo.enabled ? goo.prePixelate : 1;
 
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
@@ -174,35 +177,14 @@ export function useSonification(
 
     if (bothDots) {
       allInteractions = computeDotInteractions(
-        layer1,
-        layer2,
-        offset,
-        canvasW,
-        canvasH,
-        radius,
-        freqMin,
-        freqRatio,
-        spatialHashRef,
-        neighborsBuffer,
-        pixels,
-        dpr,
-        lumInfluence,
-        samplePoint,
+        layer1, layer2, offset, canvasW, canvasH,
+        radius, freqMin, freqRatio, prePixelate,
+        spatialHashRef, neighborsBuffer,
       );
     } else if (bothLines) {
       allInteractions = computeLineInteractions(
-        layer1,
-        layer2,
-        offset,
-        canvasW,
-        canvasH,
-        radius,
-        freqMin,
-        freqRatio,
-        pixels,
-        dpr,
-        lumInfluence,
-        samplePoint,
+        layer1, layer2, offset, canvasW, canvasH,
+        radius, freqMin, freqRatio,
       );
     } else {
       const dotLayer = layer1.type === "dots" ? layer1 : layer2;
@@ -217,19 +199,8 @@ export function useSonification(
           : { x: 0, y: 0 };
 
       allInteractions = computeDotLineInteractions(
-        dotLayer,
-        dotOffset,
-        lineLayer,
-        lineOffset,
-        canvasW,
-        canvasH,
-        radius,
-        freqMin,
-        freqRatio,
-        pixels,
-        dpr,
-        lumInfluence,
-        samplePoint,
+        dotLayer, dotOffset, lineLayer, lineOffset,
+        canvasW, canvasH, radius, freqMin, freqRatio, prePixelate,
       );
     }
 
@@ -257,6 +228,9 @@ export function useSonification(
     offset.y,
     canvasW,
     canvasH,
+    goo.blur,
+    goo.prePixelate,
+    goo.enabled,
   ]);
 
   // Cleanup on unmount
@@ -275,30 +249,6 @@ export function useSonification(
 
 // ─── Dot-mode interaction computation ───
 
-/**
- * Apply luminance as a gain multiplier.
- * influence=0: luminance has no effect. influence=1: full scaling.
- */
-function applyLuminance(
-  gain: number,
-  luminance: number,
-  influence: number,
-): number {
-  // lerp between unscaled gain and luminance-scaled gain
-  return gain * (1 - influence + influence * luminance);
-}
-
-/**
- * Map a hue (0-1) to a frequency using log scaling.
- */
-function hueToFreq(
-  hue: number,
-  freqMin: number,
-  freqRatio: number,
-): number {
-  return freqMin * Math.pow(freqRatio, hue);
-}
-
 function computeDotInteractions(
   layer1: LayerConfig,
   layer2: LayerConfig,
@@ -308,21 +258,13 @@ function computeDotInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  prePixelate: number,
   spatialHashRef: React.MutableRefObject<SpatialHash | null>,
   neighborsBuffer: React.MutableRefObject<number[]>,
-  pixels: ImageData | null,
-  dpr: number,
-  lumInfluence: number,
-  colorSamplePoint: "moving" | "midpoint",
 ): Array<{ key: string; gain: number; freq: number }> {
   const gridA = extractDotPositions(layer1, 0, 0, canvasW, canvasH, radius);
   const gridB = extractDotPositions(
-    layer2,
-    offset.x,
-    offset.y,
-    canvasW,
-    canvasH,
-    radius,
+    layer2, offset.x, offset.y, canvasW, canvasH, radius,
   );
 
   if (gridA.count === 0 || gridB.count === 0) return [];
@@ -345,7 +287,6 @@ function computeDotInteractions(
     hash.queryNeighbors(ax, ay, neighbors);
 
     let bestGain = 0;
-    let bestBx = 0;
     let bestBy = 0;
 
     for (let n = 0; n < neighbors.length; n++) {
@@ -361,28 +302,17 @@ function computeDotInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          bestBx = bx;
           bestBy = by;
         }
       }
     }
 
     if (bestGain > 0) {
-      // Sample color at moving dot (grid B) or midpoint between A and B
-      let sx: number, sy: number;
-      if (colorSamplePoint === "midpoint") {
-        sx = (ax + bestBx) / 2;
-        sy = (ay + bestBy) / 2;
-      } else {
-        sx = bestBx;
-        sy = bestBy;
-      }
-      const color = pixels ? sampleColor(pixels, sx, sy, dpr) : null;
-      if (!color) continue;
-      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
-      if (finalGain < 0.001) continue;
-      const freq = hueToFreq(color.hue, freqMin, freqRatio);
-      interactions.push({ key: `D${i}`, gain: finalGain, freq });
+      // Y-position of the moving dot → frequency, quantized to major scale
+      // Pre-pixelate quantizes the position first (chunking effect)
+      const qy = quantizePosition(bestBy, prePixelate);
+      const freq = yToFreq(qy, canvasH, freqMin, freqRatio);
+      interactions.push({ key: `D${i}`, gain: bestGain, freq });
     }
   }
 
@@ -400,30 +330,17 @@ function computeLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
-  pixels: ImageData | null,
-  dpr: number,
-  lumInfluence: number,
-  colorSamplePoint: "moving" | "midpoint",
 ): Array<{ key: string; gain: number; freq: number }> {
   const linesA = extractLinePositions(layer1, 0, 0, canvasW, canvasH, radius);
   const linesB = extractLinePositions(
-    layer2,
-    offset.x,
-    offset.y,
-    canvasW,
-    canvasH,
-    radius,
+    layer2, offset.x, offset.y, canvasW, canvasH, radius,
   );
 
   if (linesA.count === 0 || linesB.count === 0) return [];
 
-  const sortedB: Array<{ perp: number; worldX: number; idx: number }> = [];
+  const sortedB: Array<{ perp: number; idx: number }> = [];
   for (let j = 0; j < linesB.count; j++) {
-    sortedB.push({
-      perp: linesB.perpPositions[j],
-      worldX: linesB.worldX[j],
-      idx: j,
-    });
+    sortedB.push({ perp: linesB.perpPositions[j], idx: j });
   }
   sortedB.sort((a, b) => a.perp - b.perp);
 
@@ -431,7 +348,6 @@ function computeLineInteractions(
 
   for (let i = 0; i < linesA.count; i++) {
     const perpA = linesA.perpPositions[i];
-    const wxA = linesA.worldX[i];
 
     let lo = 0;
     let hi = sortedB.length - 1;
@@ -445,7 +361,7 @@ function computeLineInteractions(
     }
 
     let bestGain = 0;
-    let bestWxB = 0;
+    let bestPerp = 0;
 
     for (
       let k = Math.max(0, lo - 2);
@@ -458,23 +374,18 @@ function computeLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          bestWxB = sortedB[k].worldX;
+          bestPerp = sortedB[k].perp;
         }
       }
     }
 
     if (bestGain > 0) {
-      const sampleX =
-        colorSamplePoint === "midpoint"
-          ? Math.max(0, Math.min(canvasW, (wxA + bestWxB) / 2))
-          : Math.max(0, Math.min(canvasW, bestWxB));
-      const sampleY = canvasH / 2;
-      const color = pixels ? sampleColor(pixels, sampleX, sampleY, dpr) : null;
-      if (!color) continue;
-      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
-      if (finalGain < 0.001) continue;
-      const freq = hueToFreq(color.hue, freqMin, freqRatio);
-      interactions.push({ key: `L${i}`, gain: finalGain, freq });
+      // Use perpendicular position as frequency source for lines
+      // Map perp range to canvas height range for consistent freq mapping
+      const normalizedPerp = (bestPerp + canvasH) / (canvasH * 2);
+      const rawFreq = freqMin * Math.pow(freqRatio, Math.max(0, Math.min(1, normalizedPerp)));
+      const freq = quantizeToMajorScale(rawFreq, freqMin);
+      interactions.push({ key: `L${i}`, gain: bestGain, freq });
     }
   }
 
@@ -482,9 +393,6 @@ function computeLineInteractions(
 }
 
 // ─── Dot-line mixed interaction computation ───
-// Dots drive the voices. For each dot, compute its perpendicular distance
-// to the nearest line in the other layer. This maps to what you see:
-// dots light up as they cross or approach a line.
 
 function computeDotLineInteractions(
   dotLayer: LayerConfig,
@@ -496,32 +404,17 @@ function computeDotLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
-  pixels: ImageData | null,
-  dpr: number,
-  lumInfluence: number,
-  _colorSamplePoint: "moving" | "midpoint", // not used for dot-line (dot IS the interaction point)
+  prePixelate: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const dots = extractDotPositions(
-    dotLayer,
-    dotOffset.x,
-    dotOffset.y,
-    canvasW,
-    canvasH,
-    radius,
+    dotLayer, dotOffset.x, dotOffset.y, canvasW, canvasH, radius,
   );
   const lines = extractLinePositions(
-    lineLayer,
-    lineOffset.x,
-    lineOffset.y,
-    canvasW,
-    canvasH,
-    radius,
+    lineLayer, lineOffset.x, lineOffset.y, canvasW, canvasH, radius,
   );
 
   if (dots.count === 0 || lines.count === 0) return [];
 
-  // The line's normal direction — all lines are parallel, so we project
-  // each dot onto the shared normal axis and compare with line perps.
   const lineRad = (lineLayer.rotation * Math.PI) / 180;
   const nx = -Math.sin(lineRad);
   const ny = Math.cos(lineRad);
@@ -529,7 +422,6 @@ function computeDotLineInteractions(
   const centerX = canvasW / 2;
   const centerY = canvasH / 2;
 
-  // Sort line perpendicular positions for binary search
   const sortedLines: Array<{ perp: number; idx: number }> = [];
   for (let j = 0; j < lines.count; j++) {
     sortedLines.push({ perp: lines.perpPositions[j], idx: j });
@@ -542,10 +434,8 @@ function computeDotLineInteractions(
     const dx = dots.positions[i * 2];
     const dy = dots.positions[i * 2 + 1];
 
-    // Project dot onto the line's normal axis (same coord system as line perps)
     const dotPerp = (dx - centerX) * nx + (dy - centerY) * ny;
 
-    // Binary search for nearest line
     let lo = 0;
     let hi = sortedLines.length - 1;
     while (lo < hi) {
@@ -557,9 +447,7 @@ function computeDotLineInteractions(
       }
     }
 
-    // Check nearest few lines
     let bestGain = 0;
-    let bestDist = radius;
 
     for (
       let k = Math.max(0, lo - 2);
@@ -572,18 +460,14 @@ function computeDotLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          bestDist = dist;
         }
       }
     }
 
     if (bestGain > 0) {
-      const color = pixels ? sampleColor(pixels, dx, dy, dpr) : null;
-      if (!color) continue;
-      const finalGain = applyLuminance(bestGain, color.luminance, lumInfluence);
-      if (finalGain < 0.001) continue;
-      const freq = hueToFreq(color.hue, freqMin, freqRatio);
-      interactions.push({ key: `M${i}`, gain: finalGain, freq });
+      const qy = quantizePosition(dy, prePixelate);
+      const freq = yToFreq(qy, canvasH, freqMin, freqRatio);
+      interactions.push({ key: `M${i}`, gain: bestGain, freq });
     }
   }
 

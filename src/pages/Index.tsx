@@ -37,8 +37,6 @@ interface AudioSettings {
   frequencyRange: { min: number; max: number };
   rampTimeMs: number;
   maxVoices: number;
-  luminanceInfluence: number;
-  colorSamplePoint: "moving" | "midpoint";
 }
 
 interface AppSettings {
@@ -104,8 +102,6 @@ const Index = () => {
       frequencyRange: { min: 80, max: 800 },
       rampTimeMs: 40,
       maxVoices: 128,
-      luminanceInfluence: 1,
-      colorSamplePoint: "moving" as const,
     },
   });
 
@@ -133,8 +129,6 @@ const Index = () => {
             frequencyRange: { min: 80, max: 800 },
             rampTimeMs: 40,
             maxVoices: 128,
-      luminanceInfluence: 1,
-      colorSamplePoint: "moving" as const,
           },
         } as AppSettings;
 
