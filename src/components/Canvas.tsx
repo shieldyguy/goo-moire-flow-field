@@ -112,6 +112,39 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
   const driftOffsetRef = useRef({ x: 0, y: 0 });
   const lastDriftTimeRef = useRef(0);
 
+  // Global 24fps throttle for setOffset — caps React re-renders to match render budget
+  const TARGET_FPS = 24;
+  const FRAME_MS = 1000 / TARGET_FPS;
+  const lastSetOffsetRef = useRef(0);
+  const pendingOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingOffsetTimerRef = useRef<number | null>(null);
+
+  const throttledSetOffset = (x: number, y: number) => {
+    const now = performance.now();
+    if (now - lastSetOffsetRef.current >= FRAME_MS) {
+      lastSetOffsetRef.current = now;
+      if (pendingOffsetTimerRef.current !== null) {
+        clearTimeout(pendingOffsetTimerRef.current);
+        pendingOffsetTimerRef.current = null;
+      }
+      setOffset({ x, y });
+    } else {
+      // Stash latest value; trailing-edge timer ensures final position renders
+      pendingOffsetRef.current = { x, y };
+      if (pendingOffsetTimerRef.current === null) {
+        const remaining = FRAME_MS - (now - lastSetOffsetRef.current);
+        pendingOffsetTimerRef.current = window.setTimeout(() => {
+          pendingOffsetTimerRef.current = null;
+          lastSetOffsetRef.current = performance.now();
+          if (pendingOffsetRef.current) {
+            setOffset(pendingOffsetRef.current);
+            pendingOffsetRef.current = null;
+          }
+        }, remaining);
+      }
+    }
+  };
+
   // EMA velocity tracking — replaces sample-based velocity for smooth handoff
   const lastDragPosRef = useRef({ x: 0, y: 0 });
   const lastDragTimeRef = useRef(0);
@@ -171,7 +204,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
       driftOffsetRef.current.x += vel.vx * dt;
       driftOffsetRef.current.y += vel.vy * dt;
 
-      setOffset({ x: driftOffsetRef.current.x, y: driftOffsetRef.current.y });
+      throttledSetOffset(driftOffsetRef.current.x, driftOffsetRef.current.y);
 
       if (friction > 0 && Math.hypot(vel.vx, vel.vy) < 0.5) {
         driftAnimRef.current = null;
@@ -305,7 +338,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
     updateVelocityEma(newX, newY);
-    setOffset({ x: newX, y: newY });
+    throttledSetOffset(newX, newY);
   };
 
   const handleMouseUp = () => {
@@ -372,7 +405,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
       const newY = touch.clientY - dragStartRef.current.y;
 
       updateVelocityEma(newX, newY);
-      setOffset({ x: newX, y: newY });
+      throttledSetOffset(newX, newY);
     };
 
     const handleTouchEndEvent = (e: TouchEvent) => {

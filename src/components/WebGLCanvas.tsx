@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef, useMemo } from "react";
+import React, { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import { GridRenderer } from "@/lib/webgl/GridRenderer";
 
 interface WebGLCanvasProps {
   width: number;
@@ -36,187 +37,101 @@ interface WebGLCanvasProps {
   };
 }
 
+const CANVAS_STYLE: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  width: "100%",
+  height: "100%",
+  imageRendering: "pixelated",
+};
+
 const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
   width,
   height,
   settings,
   offset,
 }, ref) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useImperativeHandle(ref, () => canvasRef.current!, []);
+  const containerRef = useRef<HTMLDivElement>(null);
   const dpr = window.devicePixelRatio || 1;
 
-  // Persistent offscreen canvas and WebGL filter — never recreated
-  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // The currently displayed canvas (grid or filter output) — swapped into the DOM
+  const displayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Expose the currently displayed canvas for screenshots
+  useImperativeHandle(ref, () => displayCanvasRef.current!, []);
+
+  // Persistent WebGL filter — never recreated
   const filterRef = useRef<any>(null);
+  const gridRendererRef = useRef<GridRenderer | null>(null);
 
   // 24 FPS draw throttle
   const lastDrawTimeRef = useRef(0);
   const pendingDrawRef = useRef<number | null>(null);
   const FRAME_INTERVAL = 1000 / 24;
 
-  // Helper function to draw concentric squares
-  const drawConcentricSquares = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    size: number,
-    color: string,
-    numShapes: number = 3,
-    strokeWidth: number = 1
-  ) => {
-    // Number of squares to draw (use parameter or default to 3)
-    const numSquares = numShapes || 3;
-    
-    // Size reduction for each inner square
-    const sizeStep = size / numSquares;
-    
-    ctx.strokeStyle = color;
-    ctx.lineWidth = strokeWidth || 1;
-    
-    for (let i = 0; i < numSquares; i++) {
-      const currentSize = size - (sizeStep * i);
-      const halfSize = currentSize / 2;
-      
-      ctx.beginPath();
-      // Draw square from centerpoint
-      ctx.rect(x - halfSize, y - halfSize, currentSize, currentSize);
-      ctx.stroke();
-    }
-  };
-
-  // Draw a single layer of dots, lines or concentric squares
-  const drawLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    offsetX: number,
-    offsetY: number
-  ) => {
-    ctx.save();
-
-    const spacing = layer.spacing * dpr; // Scale spacing with DPR
-
-    // Wrap offset modulo spacing so the grid never drifts more than one cell from center
-    const rad = (layer.rotation * Math.PI) / 180;
-    const cosR = Math.cos(rad);
-    const sinR = Math.sin(rad);
-    const localX = offsetX * cosR + offsetY * sinR;
-    const localY = -offsetX * sinR + offsetY * cosR;
-    const wrappedLocalX = ((localX % spacing) + spacing) % spacing;
-    const wrappedLocalY = ((localY % spacing) + spacing) % spacing;
-    const wrappedX = wrappedLocalX * cosR - wrappedLocalY * sinR;
-    const wrappedY = wrappedLocalX * sinR + wrappedLocalY * cosR;
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-    ctx.translate(centerX + wrappedX, centerY + wrappedY);
-    ctx.rotate(rad);
-    const size = layer.size * dpr; // Scale size with DPR
-    const color = layer.color;
-    const type = layer.type || 'dots'; // Default to dots if not specified
-
-    if (type === 'dots') {
-      // Draw dots in a grid
-      for (let x = -width; x < width * 2; x += spacing) {
-        for (let y = -height; y < height * 2; y += spacing) {
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    } else if (type === 'lines') {
-      // Draw lines in a grid
-      for (let x = -width; x < width * 2; x += spacing) {
-        for (let y = -height; y < height * 2; y += spacing) {
-          ctx.strokeStyle = color;
-          ctx.lineWidth = size;
-          ctx.beginPath();
-          ctx.moveTo(x - spacing / 2 - 1, y + 0.5);
-          ctx.lineTo(x + spacing / 2 + 1, y + 0.5);
-          ctx.stroke();
-        }
-      }
-    } else if (type === 'squares') {
-      // Draw concentric squares in a grid
-      for (let x = -width; x < width * 2; x += spacing) {
-        for (let y = -height; y < height * 2; y += spacing) {
-          drawConcentricSquares(ctx, x, y, size, color, layer.numShapes, layer.strokeWidth);
-        }
-      }
-    }
-
-    ctx.restore();
-  };
-
-  // Draw everything
+  // Draw everything — renders to GPU canvases and swaps the visible one into the DOM
   const draw = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    // Lazy-init GridRenderer
+    if (!gridRendererRef.current) {
+      gridRendererRef.current = new GridRenderer();
+    }
+    const grid = gridRendererRef.current;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    grid.resize(width, height);
+    grid.clear();
+    grid.drawLayer(settings.layer1, 0, 0, dpr);
+    grid.drawLayer(settings.layer2, offset.x, offset.y, dpr);
 
-    // Draw layers
-    drawLayer(ctx, settings.layer1, 0, 0);
-    drawLayer(ctx, settings.layer2, offset.x, offset.y);
+    let outputCanvas: HTMLCanvasElement;
 
-    // Apply post-processing if enabled
     if (settings.goo.enabled) {
-      // Reuse offscreen canvas — only create once, resize if needed
-      if (!tempCanvasRef.current) {
-        tempCanvasRef.current = document.createElement('canvas');
+      if (!filterRef.current) {
+        filterRef.current = new window.WebGLImageFilter();
       }
-      const tempCanvas = tempCanvasRef.current;
-      if (tempCanvas.width !== canvas.width || tempCanvas.height !== canvas.height) {
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
+      const filter = filterRef.current;
+
+      filter.reset();
+      const scaledBlur = settings.goo.blur * dpr;
+      const scaledPrePixelate = settings.goo.prePixelate * dpr;
+      const scaledPostPixelate = settings.goo.postPixelate * dpr;
+      filter.addFilter("pixelate", scaledPrePixelate);
+      filter.addFilter("blur", scaledBlur);
+      filter.addFilter("blur", scaledBlur);
+      filter.addFilter("blur", scaledBlur);
+      filter.addFilter("blur", scaledBlur);
+      const thresholdFactor = settings.goo.threshold / 128;
+      filter.addFilter("brightness", thresholdFactor);
+      filter.addFilter("contrast", 20);
+      filter.addFilter("polaroid");
+      filter.addFilter("pixelate", scaledPostPixelate);
+
+      outputCanvas = filter.apply(grid.canvas);
+    } else {
+      outputCanvas = grid.canvas;
+    }
+
+    // Swap displayed canvas if the source changed (e.g., goo toggled)
+    if (displayCanvasRef.current !== outputCanvas) {
+      if (displayCanvasRef.current?.parentNode === container) {
+        container.removeChild(displayCanvasRef.current);
       }
-      const tempCtx = tempCanvas.getContext('2d');
-
-      if (tempCtx) {
-        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tempCtx.drawImage(canvas, 0, 0);
-
-        if (!filterRef.current) {
-          filterRef.current = new window.WebGLImageFilter();
-        }
-        const filter = filterRef.current;
-
-        filter.reset();
-        // Scale blur and pixelate by DPR so the goo effect looks the same
-        // regardless of screen resolution (dots/spacing are already DPR-scaled)
-        const scaledBlur = settings.goo.blur * dpr;
-        const scaledPrePixelate = settings.goo.prePixelate * dpr;
-        const scaledPostPixelate = settings.goo.postPixelate * dpr;
-        filter.addFilter("pixelate", scaledPrePixelate);
-        filter.addFilter("blur", scaledBlur);
-        filter.addFilter("blur", scaledBlur);
-        filter.addFilter("blur", scaledBlur);
-        filter.addFilter("blur", scaledBlur);
-        const thresholdFactor = settings.goo.threshold / 128;
-        filter.addFilter("brightness", thresholdFactor);
-        filter.addFilter("contrast", 20);
-        filter.addFilter("polaroid");
-        filter.addFilter("pixelate", scaledPostPixelate);
-
-        const result = filter.apply(tempCanvas);
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(result, 0, 0);
-      }
+      Object.assign(outputCanvas.style, {
+        position: "absolute",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        imageRendering: "pixelated",
+      });
+      container.appendChild(outputCanvas);
+      displayCanvasRef.current = outputCanvas;
     }
   };
 
   // Initialize
   useEffect(() => {
-    if (!canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    canvas.width = width;
-    canvas.height = height;
     draw();
   }, []);
 
@@ -242,25 +157,24 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
     }
   }, [settings, offset, width, height]);
 
-  // Cleanup throttle timer on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (pendingDrawRef.current !== null) {
         clearTimeout(pendingDrawRef.current);
       }
+      gridRendererRef.current?.dispose();
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
+    <div
+      ref={containerRef}
       style={{
+        position: "relative",
         width: "100%",
         height: "100%",
         backgroundColor: "rgba(0,0,0,0.1)",
-        imageRendering: "pixelated",
       }}
     />
   );

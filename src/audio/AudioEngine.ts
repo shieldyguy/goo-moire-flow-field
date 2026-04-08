@@ -36,6 +36,19 @@ export class AudioEngine {
   /** Time constant for setTargetAtTime — controls smoothing speed. */
   private static GAIN_TIME_CONSTANT = 0.03; // ~30ms
 
+  /**
+   * Flush pending automation events on an AudioParam before scheduling a new
+   * ramp.  Without this, setTargetAtTime adds to an internal queue that grows
+   * unbounded — ~1 MB/s of heap growth during drift.
+   */
+  private cancelParam(param: AudioParam, now: number): void {
+    if (param.cancelAndHoldAtTime) {
+      param.cancelAndHoldAtTime(now);
+    } else {
+      param.cancelScheduledValues(now);
+    }
+  }
+
   get isReady(): boolean {
     return this.ctx !== null && this.ctx.state === "running";
   }
@@ -122,6 +135,7 @@ export class AudioEngine {
     // Normalize against maxVoices so volume is consistent regardless
     // of how many voices are actually active.
     const normValue = 1 / Math.max(config.maxVoices, 1);
+    this.cancelParam(this.normGain.gain, now);
     this.normGain.gain.setTargetAtTime(normValue, now, tau);
 
     // Update or create voices for all active targets
@@ -135,11 +149,11 @@ export class AudioEngine {
       }
 
       // Smooth frequency update
+      this.cancelParam(voice.osc.frequency, now);
       voice.osc.frequency.setTargetAtTime(target.freq, now, tau);
 
-      // Smooth gain update using setTargetAtTime — unlike linearRampToValueAtTime,
-      // this doesn't require an anchor and handles being called every frame
-      // without cancellation artifacts.
+      // Smooth gain update
+      this.cancelParam(voice.gain.gain, now);
       voice.gain.gain.setTargetAtTime(target.gain, now, tau);
       voice.targetGain = target.gain;
 
@@ -154,6 +168,7 @@ export class AudioEngine {
       if (!targets.has(key)) {
         // Not in this frame's targets — fade to zero
         if (voice.targetGain > 0) {
+          this.cancelParam(voice.gain.gain, now);
           voice.gain.gain.setTargetAtTime(0, now, tau);
           voice.targetGain = 0;
         }

@@ -102,6 +102,8 @@ export function useSonification(
 
   const spatialHashRef = useRef<SpatialHash | null>(null);
   const neighborsBuffer = useRef<number[]>([]);
+  const lastAudioUpdateRef = useRef(0);
+  const AUDIO_UPDATE_INTERVAL = 1000 / 15;
 
   const getEngine = useCallback(() => {
     if (!engineRef.current) {
@@ -147,6 +149,11 @@ export function useSonification(
     const engine = engineRef.current;
     if (!engine || !engine.isReady || !audioSettings.enabled) return;
     if (canvasW === 0 || canvasH === 0) return;
+
+    // Throttle audio proximity updates to 15fps — computation is idempotent
+    const now = performance.now();
+    if (now - lastAudioUpdateRef.current < AUDIO_UPDATE_INTERVAL) return;
+    lastAudioUpdateRef.current = now;
 
     // Reset buffer alternation so grid A/B get separate buffers
     resetExtractorBuffers();
