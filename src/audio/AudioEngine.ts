@@ -113,8 +113,8 @@ export class AudioEngine {
       let voice = this.voices.get(key);
 
       if (!voice) {
-        // Create new voice if under the cap
-        if (this.activeCount >= config.maxVoices) continue;
+        // Voice cap is enforced upstream (useSonification sorts by gain
+        // and only sends the top N targets), so we always create here.
         voice = this.createVoice(target.freq);
         this.voices.set(key, voice);
         this.activeCount++;

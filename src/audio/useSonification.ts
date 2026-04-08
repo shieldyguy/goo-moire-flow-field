@@ -98,7 +98,8 @@ export function useSonification(
     const radius =
       ((layer1.size + layer2.size) / 2) * audioSettings.interactionRadius;
     const { min: freqMin, max: freqMax } = audioSettings.frequencyRange;
-    const freqRange = freqMax - freqMin;
+    // Log ratio for perceptually even frequency spread
+    const freqRatio = freqMax / freqMin;
 
     // 1. Extract positions for both layers (CSS pixels)
     const gridA = extractDotPositions(layer1, 0, 0, canvasW, canvasH, radius);
@@ -124,8 +125,12 @@ export function useSonification(
     hash.clear();
     hash.insertAll(gridB.positions, gridB.count);
 
-    // 3. For each dot in grid A, query neighbors in grid B
-    const targets = new Map<string, { gain: number; freq: number }>();
+    // 3. For each dot in grid A, query neighbors in grid B.
+    //    Collect ALL interactions first, then sort by gain and cap voices —
+    //    this prevents left-to-right bias where low-frequency dots exhaust
+    //    the voice pool before high-frequency dots get a chance.
+    const allInteractions: Array<{ key: string; gain: number; freq: number }> =
+      [];
     const neighbors = neighborsBuffer.current;
 
     for (let i = 0; i < gridA.count; i++) {
@@ -134,6 +139,9 @@ export function useSonification(
 
       neighbors.length = 0;
       hash.queryNeighbors(ax, ay, neighbors);
+
+      let bestGain = 0;
+      let bestFreq = 0;
 
       for (let n = 0; n < neighbors.length; n++) {
         const j = neighbors[n];
@@ -146,21 +154,29 @@ export function useSonification(
 
         if (dist < radius) {
           const gain = 1 - dist / radius;
-          // Key by "A-index" — each grid-A dot produces at most one voice,
-          // taking the loudest interaction if multiple grid-B dots are close.
-          const key = `A${i}`;
-          const existing = targets.get(key);
-
-          if (!existing || gain > existing.gain) {
-            // Frequency from grid-A dot's x position
-            const freq = freqMin + (ax / canvasW) * freqRange;
-            targets.set(key, { gain, freq });
+          if (gain > bestGain) {
+            bestGain = gain;
+            // Log frequency mapping: perceptually even spread across canvas
+            bestFreq = freqMin * Math.pow(freqRatio, ax / canvasW);
           }
         }
       }
+
+      if (bestGain > 0) {
+        allInteractions.push({ key: `A${i}`, gain: bestGain, freq: bestFreq });
+      }
     }
 
-    // 4. Feed to engine
+    // 4. Sort by gain (loudest first) and cap at maxVoices
+    allInteractions.sort((a, b) => b.gain - a.gain);
+    const targets = new Map<string, { gain: number; freq: number }>();
+    const limit = Math.min(allInteractions.length, audioSettings.maxVoices);
+    for (let i = 0; i < limit; i++) {
+      const t = allInteractions[i];
+      targets.set(t.key, { gain: t.gain, freq: t.freq });
+    }
+
+    // 5. Feed to engine
     engine.updateVoices(targets, audioSettings);
   }, [
     audioSettings,

@@ -512,34 +512,147 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
 
                       {settings.audio?.enabled && (
-                        <div>
-                          <div className="flex justify-between">
-                            <label className="text-sm text-zinc-200">
-                              Master Volume
-                            </label>
-                            <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
-                              {Math.round(
+                        <>
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Master Volume
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {Math.round(
+                                  (settings.audio?.masterVolume ?? 0.3) * 100,
+                                )}
+                                %
+                              </span>
+                            </div>
+                            <Slider
+                              value={[
                                 (settings.audio?.masterVolume ?? 0.3) * 100,
-                              )}
-                              %
-                            </span>
+                              ]}
+                              min={0}
+                              max={100}
+                              step={1}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "audio",
+                                  "masterVolume",
+                                  value[0] / 100,
+                                )
+                              }
+                            />
                           </div>
-                          <Slider
-                            value={[
-                              (settings.audio?.masterVolume ?? 0.3) * 100,
-                            ]}
-                            min={0}
-                            max={100}
-                            step={1}
-                            onValueChange={(value) =>
-                              handleUpdateSetting(
-                                "audio",
-                                "masterVolume",
-                                value[0] / 100,
-                              )
-                            }
-                          />
-                        </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Interaction Range
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {(
+                                  settings.audio?.interactionRadius ?? 1
+                                ).toFixed(2)}
+                                x
+                              </span>
+                            </div>
+                            <Slider
+                              value={[
+                                settings.audio?.interactionRadius ?? 1,
+                              ]}
+                              min={0.01}
+                              max={2}
+                              step={0.01}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "audio",
+                                  "interactionRadius",
+                                  value[0],
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Max Voices
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.audio?.maxVoices ?? 128}
+                              </span>
+                            </div>
+                            <Slider
+                              value={[settings.audio?.maxVoices ?? 128]}
+                              min={1}
+                              max={256}
+                              step={1}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "audio",
+                                  "maxVoices",
+                                  value[0],
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Freq Min
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.audio?.frequencyRange?.min ?? 80} Hz
+                              </span>
+                            </div>
+                            <Slider
+                              value={[
+                                settings.audio?.frequencyRange?.min ?? 80,
+                              ]}
+                              min={20}
+                              max={2000}
+                              step={1}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "audio",
+                                  "frequencyRange",
+                                  {
+                                    ...settings.audio?.frequencyRange,
+                                    min: value[0],
+                                  },
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Freq Max
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.audio?.frequencyRange?.max ?? 800} Hz
+                              </span>
+                            </div>
+                            <Slider
+                              value={[
+                                settings.audio?.frequencyRange?.max ?? 800,
+                              ]}
+                              min={100}
+                              max={8000}
+                              step={1}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "audio",
+                                  "frequencyRange",
+                                  {
+                                    ...settings.audio?.frequencyRange,
+                                    max: value[0],
+                                  },
+                                )
+                              }
+                            />
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
