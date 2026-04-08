@@ -14,12 +14,16 @@ export async function uploadOgImage(
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, OG_WIDTH, OG_HEIGHT);
 
-  // Crop a center region from the source canvas at 4x zoom (25% of the canvas)
-  // at the OG aspect ratio. This gives a tight, detailed preview.
+  // Crop a center region that represents roughly the same amount of content
+  // regardless of screen size.  We target ~400 CSS-px worth of width; on a
+  // large desktop canvas that means a high zoom (tight crop) while on a small
+  // mobile canvas we zoom less so the preview isn't absurdly zoomed in.
   const srcW = sourceCanvas.width;
   const srcH = sourceCanvas.height;
   const ogAspect = OG_WIDTH / OG_HEIGHT;
-  const zoom = 4;
+  const TARGET_CROP_CSS_W = 400;
+  const dpr = window.devicePixelRatio || 1;
+  const zoom = Math.max(1.5, Math.min(4, srcW / (TARGET_CROP_CSS_W * dpr)));
 
   // Start with 1/zoom of the source dimensions, then adjust for aspect ratio
   let cropW = srcW / zoom;
