@@ -11,46 +11,6 @@ import GestureHandler from "./GestureHandler";
 import { useSonification } from "@/audio/useSonification";
 import type { MovementData } from "@/lib/encoding/presetEncoder";
 
-// Custom hook to throttle a function to limit how often it's called
-// defaultFps = 60 means the function can be called at most once every ~16.6ms
-const useThrottle = <T extends (...args: any[]) => any>(
-  fn: T,
-  fps: number = 12,
-): T => {
-  const lastCall = useRef<number>(0);
-  const timeout = useRef<NodeJS.Timeout | null>(null);
-  const lastArgs = useRef<any[]>([]);
-
-  // Calculate throttle delay in ms based on fps
-  const throttleMs = 1000 / fps;
-
-  return useCallback(
-    ((...args: any[]) => {
-      const now = Date.now();
-      lastArgs.current = args;
-
-      // If enough time has passed since last call, execute immediately
-      if (now - lastCall.current >= throttleMs) {
-        lastCall.current = now;
-        return fn(...args);
-      }
-
-      // Otherwise, set a timeout to execute after the throttle period
-      if (timeout.current === null) {
-        timeout.current = setTimeout(
-          () => {
-            lastCall.current = Date.now();
-            timeout.current = null;
-            fn(...lastArgs.current);
-          },
-          throttleMs - (now - lastCall.current),
-        );
-      }
-    }) as T,
-    [fn, throttleMs],
-  );
-};
-
 interface CanvasProps {
   // Default values for our parameters
   settings: {
@@ -146,16 +106,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     settings.goo,
   );
 
-  // Drift refs
-  const dragSamplesRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
+  // Drift animation refs
   const driftAnimRef = useRef<number | null>(null);
   const driftVelocityRef = useRef({ vx: 0, vy: 0 });
   const driftOffsetRef = useRef({ x: 0, y: 0 });
   const lastDriftTimeRef = useRef(0);
-  const driftSetOffsetThrottleRef = useRef(0);
 
-  // Adjust this number to change the max frame rate (higher = smoother, lower = more performance)
-  const throttledSetOffset = useThrottle(setOffset, 15);
+  // EMA velocity tracking — replaces sample-based velocity for smooth handoff
+  const lastDragPosRef = useRef({ x: 0, y: 0 });
+  const lastDragTimeRef = useRef(0);
+  const VELOCITY_ALPHA = 0.3;
 
   const getSnapshot = useCallback((): HTMLCanvasElement | null => {
     return webglCanvasRef.current;
@@ -175,43 +135,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
 
   // --- Drift functions ---
 
-  const recordDragSample = (x: number, y: number) => {
-    const now = performance.now();
-    dragSamplesRef.current.push({ x, y, t: now });
-    // Prune samples older than 100ms
-    const cutoff = now - 100;
-    while (
-      dragSamplesRef.current.length > 0 &&
-      dragSamplesRef.current[0].t < cutoff
-    ) {
-      dragSamplesRef.current.shift();
-    }
-  };
-
-  const computeDriftVelocity = () => {
-    const samples = dragSamplesRef.current;
-    if (samples.length < 2) return { vx: 0, vy: 0 };
-    const first = samples[0];
-    const last = samples[samples.length - 1];
-    const dt = (last.t - first.t) / 1000; // seconds
-    if (dt < 0.016) return { vx: 0, vy: 0 };
-    // If the user stopped moving before releasing (last sample is stale),
-    // they intended to stop — no drift
-    const now = performance.now();
-    if (now - last.t > 80) return { vx: 0, vy: 0 };
-    return {
-      vx: (last.x - first.x) / dt,
-      vy: (last.y - first.y) / dt,
-    };
-  };
-
   const stopDrift = () => {
     if (driftAnimRef.current !== null) {
       cancelAnimationFrame(driftAnimRef.current);
       driftAnimRef.current = null;
     }
     driftVelocityRef.current = { vx: 0, vy: 0 };
-    dragSamplesRef.current = [];
   };
 
   const startDrift = (vx: number, vy: number) => {
@@ -219,49 +148,31 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     stopDrift();
 
     driftVelocityRef.current = { vx, vy };
-    const samples = dragSamplesRef.current;
-    if (samples.length > 0) {
-      const last = samples[samples.length - 1];
-      driftOffsetRef.current = { x: last.x, y: last.y };
-      setOffset({ x: last.x, y: last.y });
-    } else {
-      driftOffsetRef.current = { ...offset };
-    }
+    // Initialize from current rendered offset — no jump possible
+    driftOffsetRef.current = { ...offsetRef.current };
     lastDriftTimeRef.current = performance.now();
-    driftSetOffsetThrottleRef.current = 0;
 
     const friction = settings.goo.driftFriction ?? 0;
 
     const tick = (now: number) => {
-      let dt = (now - lastDriftTimeRef.current) / 1000; // seconds
+      let dt = (now - lastDriftTimeRef.current) / 1000;
       if (dt > 0.1) dt = 0.1; // cap for tab backgrounding
       lastDriftTimeRef.current = now;
 
       const vel = driftVelocityRef.current;
 
-      // Apply friction (frame-rate-independent)
+      // Apply friction (frame-rate-independent exponential decay)
       if (friction > 0) {
         const decay = Math.pow(1 - friction / 100, dt * 60);
         vel.vx *= decay;
         vel.vy *= decay;
       }
 
-      // Accumulate position
       driftOffsetRef.current.x += vel.vx * dt;
       driftOffsetRef.current.y += vel.vy * dt;
 
-      // Throttle setOffset calls to ~15 FPS
-      const throttleInterval = 1000 / 24;
-      if (now - driftSetOffsetThrottleRef.current >= throttleInterval) {
-        driftSetOffsetThrottleRef.current = now;
-        const newOffset = {
-          x: driftOffsetRef.current.x,
-          y: driftOffsetRef.current.y,
-        };
-        setOffset(newOffset);
-      }
+      setOffset({ x: driftOffsetRef.current.x, y: driftOffsetRef.current.y });
 
-      // Stop when speed is negligible (only matters with friction)
       if (friction > 0 && Math.hypot(vel.vx, vel.vy) < 0.5) {
         driftAnimRef.current = null;
         return;
@@ -271,6 +182,29 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     };
 
     driftAnimRef.current = requestAnimationFrame(tick);
+  };
+
+  // Blend instantaneous velocity into EMA for smooth drag→drift transition
+  const updateVelocityEma = (newX: number, newY: number) => {
+    const now = performance.now();
+    const dt = (now - lastDragTimeRef.current) / 1000;
+    if (dt > 0.001 && dt < 0.2) {
+      const ivx = (newX - lastDragPosRef.current.x) / dt;
+      const ivy = (newY - lastDragPosRef.current.y) / dt;
+      driftVelocityRef.current.vx += (ivx - driftVelocityRef.current.vx) * VELOCITY_ALPHA;
+      driftVelocityRef.current.vy += (ivy - driftVelocityRef.current.vy) * VELOCITY_ALPHA;
+    }
+    lastDragPosRef.current = { x: newX, y: newY };
+    lastDragTimeRef.current = now;
+  };
+
+  // On release: if finger was still for >80ms, user intended to stop, not coast
+  const releaseDrift = () => {
+    const now = performance.now();
+    if (now - lastDragTimeRef.current > 80) {
+      driftVelocityRef.current = { vx: 0, vy: 0 };
+    }
+    startDrift(driftVelocityRef.current.vx, driftVelocityRef.current.vy);
   };
 
   // Cleanup drift rAF on unmount
@@ -336,8 +270,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
       // lazily on the first actual mouse move.
       setIsDragging(true);
       dragStartRef.current = {
-        x: e.clientX - offset.x,
-        y: e.clientY - offset.y,
+        x: e.clientX - offsetRef.current.x,
+        y: e.clientY - offsetRef.current.y,
       };
     }
 
@@ -349,28 +283,32 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
 
-    // Stop drift on first actual move, not on mousedown
+    // Stop drift on first actual move, not on mousedown (preserves drift on double-click)
     if (!hasDragMovedRef.current) {
       stopDrift();
       hasDragMovedRef.current = true;
+      // Re-snapshot dragStart so there's no jump from drift advance since mousedown
+      dragStartRef.current = {
+        x: e.clientX - offsetRef.current.x,
+        y: e.clientY - offsetRef.current.y,
+      };
     }
 
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
-    recordDragSample(newX, newY);
-    throttledSetOffset({ x: newX, y: newY });
+    updateVelocityEma(newX, newY);
+    setOffset({ x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
     if (isDragging && hasDragMovedRef.current) {
-      const { vx, vy } = computeDriftVelocity();
-      startDrift(vx, vy);
+      releaseDrift();
     }
     setIsDragging(false);
     hasDragMovedRef.current = false;
   };
 
-  // Set up non-passive event listeners properly
+  // Set up non-passive touch event listeners
   useEffect(() => {
     const interactionLayer = interactionLayerRef.current;
     if (!interactionLayer) return;
@@ -413,24 +351,26 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
       if (!hasDragMovedRef.current) {
         stopDrift();
         hasDragMovedRef.current = true;
+        // Re-snapshot dragStart to avoid jump from drift advance since touchstart
+        const touch = e.touches[0];
+        dragStartRef.current = {
+          x: touch.clientX - offsetRef.current.x,
+          y: touch.clientY - offsetRef.current.y,
+        };
       }
 
       const touch = e.touches[0];
-      const deltaX = touch.clientX - dragStartRef.current.x;
-      const deltaY = touch.clientY - dragStartRef.current.y;
+      const newX = touch.clientX - dragStartRef.current.x;
+      const newY = touch.clientY - dragStartRef.current.y;
 
-      recordDragSample(deltaX, deltaY);
-      throttledSetOffset({
-        x: deltaX,
-        y: deltaY,
-      });
+      updateVelocityEma(newX, newY);
+      setOffset({ x: newX, y: newY });
     };
 
     const handleTouchEndEvent = (e: TouchEvent) => {
       e.preventDefault();
       if (isDraggingRef.current && hasDragMovedRef.current) {
-        const { vx, vy } = computeDriftVelocity();
-        startDrift(vx, vy);
+        releaseDrift();
       }
       setIsDragging(false);
       hasDragMovedRef.current = false;
@@ -453,34 +393,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setShowMenu((prev) => !prev);
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMenuClose = () => {
-    setShowMenu(false);
-  };
-
-  const handlePanStart = () => {
-    stopDrift();
-  };
-
-  const handlePan = (deltaX: number, deltaY: number) => {
-    throttledSetOffset((prev) => {
-      const newX = prev.x + deltaX;
-      const newY = prev.y + deltaY;
-      recordDragSample(newX, newY);
-      return { x: newX, y: newY };
-    });
-  };
-
-  const handlePanEnd = () => {
-    const { vx, vy } = computeDriftVelocity();
-    startDrift(vx, vy);
-  };
 
   const handlePinch = (newScale: number) => {
     if (!settings.touch?.enablePinchZoom) return;
@@ -552,9 +464,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
 
   return (
     <GestureHandler
-      onPan={handlePan}
-      onPanStart={handlePanStart}
-      onPanEnd={handlePanEnd}
       onPinch={handlePinch}
       onRotate={handleRotate}
       onRotateStart={handleRotateStart}
@@ -583,7 +492,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings, initialMovement 
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          onDoubleClick={handleDoubleClick}
         />
 
         {/* Control Panel */}

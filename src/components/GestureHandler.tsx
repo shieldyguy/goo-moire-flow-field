@@ -1,9 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
 interface GestureHandlerProps {
-  onPan: (deltaX: number, deltaY: number) => void;
-  onPanStart?: () => void;
-  onPanEnd?: () => void;
   onPinch: (scale: number) => void;
   onRotate: (rotation: number) => void;
   onRotateStart?: () => void;
@@ -13,9 +10,6 @@ interface GestureHandlerProps {
 }
 
 const GestureHandler: React.FC<GestureHandlerProps> = ({
-  onPan,
-  onPanStart,
-  onPanEnd,
   onPinch,
   onRotate,
   onRotateStart,
@@ -31,42 +25,24 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     // Simple Hammer instance
     const hammer = new window.Hammer(containerRef.current);
     
-    // Enable necessary recognizers
-    hammer.get('pan').set({ direction: window.Hammer.DIRECTION_ALL });
+    // Disable single-finger pan — native touch/mouse handlers in Canvas handle
+    // drag directly for zero-latency response and smooth drift handoff.
+    hammer.get('pan').set({ enable: false });
     hammer.get('pinch').set({ enable: true });
     hammer.get('rotate').set({ enable: true });
-    
+
     // Add doubletap recognizer
     const doubletap = new window.Hammer.Tap({ event: 'doubletap', taps: 2 });
     hammer.add(doubletap);
-    
+
     // Simple multi-touch tracking
     let isMultiTouch = false;
-    
+
     hammer.on('hammer.input', function(e) {
       // Track if multiple fingers are touching
       isMultiTouch = e.pointers.length > 1;
     });
-    
-    // Handle pan
-    hammer.on('panstart', () => {
-      if (!isMultiTouch) {
-        onPanStart?.();
-      }
-    });
 
-    hammer.on('pan', (e) => {
-      if (!isMultiTouch) {
-        onPan(e.deltaX, e.deltaY);
-      }
-    });
-
-    hammer.on('panend', () => {
-      if (!isMultiTouch) {
-        onPanEnd?.();
-      }
-    });
-    
     // Handle pinch
     hammer.on('pinch', (e) => {
       if (isMultiTouch) {
@@ -99,7 +75,7 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
     return () => {
       hammer.destroy();
     };
-  }, [onPan, onPanStart, onPanEnd, onPinch, onRotate, onRotateStart, onRotateEnd, onDoubleTap]);
+  }, [onPinch, onRotate, onRotateStart, onRotateEnd, onDoubleTap]);
   
   return (
     <div
@@ -107,7 +83,8 @@ const GestureHandler: React.FC<GestureHandlerProps> = ({
       style={{
         position: 'relative',
         width: '100%',
-        height: '100%'
+        height: '100%',
+        touchAction: 'none',
       }}
     >
       {children}
