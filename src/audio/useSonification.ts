@@ -288,77 +288,105 @@ function computeDotInteractions(
   hash.insertAll(gridB.positions, gridB.count);
 
   const neighbors = neighborsBuffer.current;
-  const useTiling = prePixelate > 1;
-
-  // When prePixelate is active, group interactions by spatial tile — one voice
-  // per tile, matching how the visual pixelate merges nearby pixels into blocks.
-  // When off, one voice per dot-A (original behavior).
-  const tileMap = useTiling
-    ? new Map<string, { gainSum: number; count: number; ySum: number }>()
-    : null;
   const interactions: Array<{ key: string; gain: number; freq: number }> = [];
 
-  for (let i = 0; i < gridA.count; i++) {
-    const ax = gridA.positions[i * 2];
-    const ay = gridA.positions[i * 2 + 1];
+  if (prePixelate > 1) {
+    // ─── Tiled mode: sample one point per tile, like the visual shader ───
+    // The visual pixelate shader picks one pixel per tile (top-left corner).
+    // We sample the tile CENTER and check: is there a grid-A dot near a
+    // grid-B dot at this point? If yes → voice on. If no → silent.
+    // This creates the same chunky on/off rhythm as the visual tiles.
 
-    neighbors.length = 0;
-    hash.queryNeighbors(ax, ay, neighbors);
+    // Build a second spatial hash for grid A so we can query both grids
+    const hashA = new SpatialHash(radius);
+    hashA.insertAll(gridA.positions, gridA.count);
 
-    let bestGain = 0;
-    let bestBx = 0;
-    let bestBy = 0;
+    const tilesX = Math.ceil(canvasW / prePixelate);
+    const tilesY = Math.ceil(canvasH / prePixelate);
 
-    for (let n = 0; n < neighbors.length; n++) {
-      const j = neighbors[n];
-      const bx = gridB.positions[j * 2];
-      const by = gridB.positions[j * 2 + 1];
+    for (let ty = 0; ty < tilesY; ty++) {
+      const cy = ty * prePixelate + prePixelate / 2;
+      for (let tx = 0; tx < tilesX; tx++) {
+        const cx = tx * prePixelate + prePixelate / 2;
 
-      const dx = ax - bx;
-      const dy = ay - by;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+        // Find nearest grid-A dot to tile center
+        neighbors.length = 0;
+        hashA.queryNeighbors(cx, cy, neighbors);
+        let nearestADist = Infinity;
+        for (let n = 0; n < neighbors.length; n++) {
+          const idx = neighbors[n];
+          const dx = cx - gridA.positions[idx * 2];
+          const dy = cy - gridA.positions[idx * 2 + 1];
+          const d = dx * dx + dy * dy;
+          if (d < nearestADist) nearestADist = d;
+        }
 
-      if (dist < radius) {
-        const gain = 1 - dist / radius;
-        if (gain > bestGain) {
-          bestGain = gain;
-          bestBx = bx;
-          bestBy = by;
+        // Find nearest grid-B dot to tile center
+        neighbors.length = 0;
+        hash.queryNeighbors(cx, cy, neighbors);
+        let nearestBDist = Infinity;
+        let nearestBy = cy;
+        for (let n = 0; n < neighbors.length; n++) {
+          const idx = neighbors[n];
+          const bx = gridB.positions[idx * 2];
+          const by = gridB.positions[idx * 2 + 1];
+          const dx = cx - bx;
+          const dy = cy - by;
+          const d = dx * dx + dy * dy;
+          if (d < nearestBDist) {
+            nearestBDist = d;
+            nearestBy = by;
+          }
+        }
+
+        // Both grids have a dot near this tile center?
+        // Compute interaction as distance between the two nearest dots
+        if (nearestADist < Infinity && nearestBDist < Infinity) {
+          // Use the sum of distances from tile center as a proxy —
+          // if both dots are close to the center, they're close to each other
+          const combinedDist = Math.sqrt(nearestADist) + Math.sqrt(nearestBDist);
+          if (combinedDist < radius) {
+            const gain = 1 - combinedDist / radius;
+            const freq = yToFreq(cy, canvasH, freqMin, freqRatio);
+            interactions.push({ key: `T${tx}_${ty}`, gain, freq });
+          }
         }
       }
     }
+  } else {
+    // ─── Per-dot mode (no tiling) ───
+    for (let i = 0; i < gridA.count; i++) {
+      const ax = gridA.positions[i * 2];
+      const ay = gridA.positions[i * 2 + 1];
 
-    if (bestGain > 0) {
-      if (tileMap) {
-        // Group into spatial tile at interaction midpoint
-        const midX = (ax + bestBx) / 2;
-        const midY = (ay + bestBy) / 2;
-        const tileX = Math.floor(midX / prePixelate);
-        const tileY = Math.floor(midY / prePixelate);
-        const tileKey = `T${tileX}_${tileY}`;
-        const existing = tileMap.get(tileKey);
-        if (existing) {
-          existing.gainSum += bestGain;
-          existing.count++;
-          existing.ySum += midY;
-        } else {
-          tileMap.set(tileKey, { gainSum: bestGain, count: 1, ySum: midY });
+      neighbors.length = 0;
+      hash.queryNeighbors(ax, ay, neighbors);
+
+      let bestGain = 0;
+      let bestBy = 0;
+
+      for (let n = 0; n < neighbors.length; n++) {
+        const j = neighbors[n];
+        const bx = gridB.positions[j * 2];
+        const by = gridB.positions[j * 2 + 1];
+
+        const dx = ax - bx;
+        const dy = ay - by;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < radius) {
+          const gain = 1 - dist / radius;
+          if (gain > bestGain) {
+            bestGain = gain;
+            bestBy = by;
+          }
         }
-      } else {
+      }
+
+      if (bestGain > 0) {
         const freq = yToFreq(bestBy, canvasH, freqMin, freqRatio);
         interactions.push({ key: `D${i}`, gain: bestGain, freq });
       }
-    }
-  }
-
-  // Emit one voice per tile
-  if (tileMap) {
-    for (const [key, acc] of tileMap) {
-      const avgGain = acc.gainSum / acc.count;
-      if (avgGain < 0.001) continue;
-      const avgY = acc.ySum / acc.count;
-      const freq = yToFreq(avgY, canvasH, freqMin, freqRatio);
-      interactions.push({ key, gain: avgGain, freq });
     }
   }
 
@@ -474,75 +502,84 @@ function computeDotLineInteractions(
   }
   sortedLines.sort((a, b) => a.perp - b.perp);
 
-  const useTiling = prePixelate > 1;
-  const tileMap = useTiling
-    ? new Map<string, { gainSum: number; count: number; ySum: number }>()
-    : null;
   const interactions: Array<{ key: string; gain: number; freq: number }> = [];
 
-  for (let i = 0; i < dots.count; i++) {
-    const dx = dots.positions[i * 2];
-    const dy = dots.positions[i * 2 + 1];
-
-    const dotPerp = (dx - centerX) * nx + (dy - centerY) * ny;
-
+  // Helper: find nearest line perp distance to a point
+  const findNearestLinePerp = (px: number, py: number): number => {
+    const perp = (px - centerX) * nx + (py - centerY) * ny;
     let lo = 0;
     let hi = sortedLines.length - 1;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (sortedLines[mid].perp < dotPerp) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
+      if (sortedLines[mid].perp < perp) lo = mid + 1;
+      else hi = mid;
     }
-
-    let bestGain = 0;
-
+    let bestDist = Infinity;
     for (
       let k = Math.max(0, lo - 2);
       k < Math.min(sortedLines.length, lo + 3);
       k++
     ) {
-      const dist = Math.abs(dotPerp - sortedLines[k].perp);
+      const d = Math.abs(perp - sortedLines[k].perp);
+      if (d < bestDist) bestDist = d;
+    }
+    return bestDist;
+  };
 
-      if (dist < radius) {
-        const gain = 1 - dist / radius;
-        if (gain > bestGain) {
-          bestGain = gain;
+  if (prePixelate > 1) {
+    // ─── Tiled mode: for each tile, find nearest dot and check its distance to nearest line ───
+    const dotHash = new SpatialHash(radius);
+    dotHash.insertAll(dots.positions, dots.count);
+
+    const tilesX = Math.ceil(canvasW / prePixelate);
+    const tilesY = Math.ceil(canvasH / prePixelate);
+    const neighbors = []; // local buffer for tile queries
+
+    for (let ty = 0; ty < tilesY; ty++) {
+      const cy = ty * prePixelate + prePixelate / 2;
+      for (let tx = 0; tx < tilesX; tx++) {
+        const cx = tx * prePixelate + prePixelate / 2;
+
+        // Find nearest dot to tile center
+        neighbors.length = 0;
+        dotHash.queryNeighbors(cx, cy, neighbors);
+        let nearestDotDist = Infinity;
+        let nearestDotX = cx;
+        let nearestDotY = cy;
+        for (let n = 0; n < neighbors.length; n++) {
+          const idx = neighbors[n];
+          const ddx = cx - dots.positions[idx * 2];
+          const ddy = cy - dots.positions[idx * 2 + 1];
+          const d = ddx * ddx + ddy * ddy;
+          if (d < nearestDotDist) {
+            nearestDotDist = d;
+            nearestDotX = dots.positions[idx * 2];
+            nearestDotY = dots.positions[idx * 2 + 1];
+          }
+        }
+        if (nearestDotDist === Infinity) continue;
+
+        // Check that dot's distance to nearest line
+        const lineDist = findNearestLinePerp(nearestDotX, nearestDotY);
+        if (lineDist < radius) {
+          const gain = 1 - lineDist / radius;
+          const freq = yToFreq(cy, canvasH, freqMin, freqRatio);
+          interactions.push({ key: `T${tx}_${ty}`, gain, freq });
         }
       }
     }
+  } else {
+    // ─── Per-dot mode ───
+    for (let i = 0; i < dots.count; i++) {
+      const dx = dots.positions[i * 2];
+      const dy = dots.positions[i * 2 + 1];
 
-    if (bestGain > 0) {
-      if (tileMap) {
-        // Tile at the dot's position (the interaction point for dot-line)
-        const tileX = Math.floor(dx / prePixelate);
-        const tileY = Math.floor(dy / prePixelate);
-        const tileKey = `T${tileX}_${tileY}`;
-        const existing = tileMap.get(tileKey);
-        if (existing) {
-          existing.gainSum += bestGain;
-          existing.count++;
-          existing.ySum += dy;
-        } else {
-          tileMap.set(tileKey, { gainSum: bestGain, count: 1, ySum: dy });
-        }
-      } else {
+      const lineDist = findNearestLinePerp(dx, dy);
+      if (lineDist < radius) {
+        const gain = 1 - lineDist / radius;
         const freq = yToFreq(dy, canvasH, freqMin, freqRatio);
-        interactions.push({ key: `M${i}`, gain: bestGain, freq });
+        interactions.push({ key: `M${i}`, gain, freq });
       }
-    }
-  }
-
-  // Emit one voice per tile
-  if (tileMap) {
-    for (const [key, acc] of tileMap) {
-      const avgGain = acc.gainSum / acc.count;
-      if (avgGain < 0.001) continue;
-      const avgY = acc.ySum / acc.count;
-      const freq = yToFreq(avgY, canvasH, freqMin, freqRatio);
-      interactions.push({ key, gain: avgGain, freq });
     }
   }
 
