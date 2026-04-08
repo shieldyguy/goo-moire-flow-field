@@ -164,6 +164,7 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
         clearTimeout(pendingDrawRef.current);
       }
       gridRendererRef.current?.dispose();
+      gridRendererRef.current = null;
     };
   }, []);
 

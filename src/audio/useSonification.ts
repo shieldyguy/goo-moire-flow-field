@@ -12,6 +12,7 @@ interface AudioSettings {
   masterVolume: number;
   interactionRadius: number;
   frequencyRange: { min: number; max: number };
+  skipVoicing: boolean;
   rampTimeMs: number;
   maxVoices: number;
 }
@@ -30,51 +31,47 @@ interface GooConfig {
   enabled: boolean;
 }
 
-// Every-other-note of the major scale, continuous across octave boundaries.
-// Full major scale: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15...
-// We take:          1,  3,  5,  7,  9,   11,   13,   15...
-// In semitones:     0,  4,  7, 11, 14,   17,   21,   24...
-const MAJOR_SCALE_SEMITONES: number[] = [];
+// Major scale semitone tables — full (every note) and skip (every other note).
+// Full:  1,2,3,4,5,6,7... → semitones 0,2,4,5,7,9,11,12,14,...
+// Skip:  1,3,5,7,9,11,13,15... → semitones 0,4,7,11,14,17,21,24,...
+const SCALE_FULL: number[] = [];
+const SCALE_SKIP: number[] = [];
 {
   const pattern = [0, 2, 4, 5, 7, 9, 11];
-  // Build the full scale across 10 octaves, then take every other note
-  const full: number[] = [];
   for (let octave = 0; octave < 10; octave++) {
     for (const s of pattern) {
-      full.push(octave * 12 + s);
+      SCALE_FULL.push(octave * 12 + s);
     }
   }
-  for (let i = 0; i < full.length; i += 2) {
-    MAJOR_SCALE_SEMITONES.push(full[i]);
+  for (let i = 0; i < SCALE_FULL.length; i += 2) {
+    SCALE_SKIP.push(SCALE_FULL[i]);
   }
 }
 
 /**
- * Quantize a frequency to the nearest note in the major scale,
+ * Quantize a frequency to the nearest note in the given scale table,
  * anchored at freqMin.
  */
-function quantizeToMajorScale(freq: number, freqMin: number): number {
-  // How many semitones above freqMin?
+function quantizeToScale(freq: number, freqMin: number, scale: number[]): number {
   const semitones = 12 * Math.log2(freq / freqMin);
   if (semitones <= 0) return freqMin;
 
-  // Find nearest major scale semitone
   let best = 0;
   let bestDist = Infinity;
-  for (const s of MAJOR_SCALE_SEMITONES) {
+  for (const s of scale) {
     const dist = Math.abs(semitones - s);
     if (dist < bestDist) {
       bestDist = dist;
       best = s;
     }
-    if (s > semitones + 6) break; // early exit
+    if (s > semitones + 6) break;
   }
 
   return freqMin * Math.pow(2, best / 12);
 }
 
 /**
- * Map y-position to frequency (log scale), then quantize to major scale.
+ * Map y-position to frequency (log scale), then quantize to scale.
  * Top of canvas = high freq, bottom = low freq.
  */
 function yToFreq(
@@ -82,10 +79,11 @@ function yToFreq(
   canvasH: number,
   freqMin: number,
   freqRatio: number,
+  scale: number[],
 ): number {
   const normalized = 1 - Math.max(0, Math.min(1, y / canvasH)); // top=1, bottom=0
   const rawFreq = freqMin * Math.pow(freqRatio, normalized);
-  return quantizeToMajorScale(rawFreq, freqMin);
+  return quantizeToScale(rawFreq, freqMin, scale);
 }
 
 /**
@@ -175,6 +173,7 @@ export function useSonification(
 
     const { min: freqMin, max: freqMax } = audioSettings.frequencyRange;
     const freqRatio = freqMax / freqMin;
+    const scale = audioSettings.skipVoicing ? SCALE_SKIP : SCALE_FULL;
     const prePixelate = goo.enabled ? goo.prePixelate : 1;
 
     // Gain cutoff — can be used for threshold gating later
@@ -188,13 +187,13 @@ export function useSonification(
     if (bothDots) {
       allInteractions = computeDotInteractions(
         layer1, layer2, offset, canvasW, canvasH,
-        radius, freqMin, freqRatio, prePixelate, gainCutoff,
+        radius, freqMin, freqRatio, scale, prePixelate, gainCutoff,
         spatialHashRef, neighborsBuffer,
       );
     } else if (bothLines) {
       allInteractions = computeLineInteractions(
         layer1, layer2, offset, canvasW, canvasH,
-        radius, freqMin, freqRatio,
+        radius, freqMin, freqRatio, scale,
       );
     } else {
       const dotLayer = layer1.type === "dots" ? layer1 : layer2;
@@ -210,7 +209,7 @@ export function useSonification(
 
       allInteractions = computeDotLineInteractions(
         dotLayer, dotOffset, lineLayer, lineOffset,
-        canvasW, canvasH, radius, freqMin, freqRatio, prePixelate, gainCutoff,
+        canvasW, canvasH, radius, freqMin, freqRatio, scale, prePixelate, gainCutoff,
       );
     }
 
@@ -296,6 +295,7 @@ function computeDotInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  scale: number[],
   prePixelate: number,
   gainCutoff: number,
   spatialHashRef: React.MutableRefObject<SpatialHash | null>,
@@ -356,7 +356,7 @@ function computeDotInteractions(
 
     // Threshold gate: below cutoff = silent, matching the visual contrast crush
     if (bestGain > gainCutoff) {
-      const freq = yToFreq(bestBy, canvasH, freqMin, freqRatio);
+      const freq = yToFreq(bestBy, canvasH, freqMin, freqRatio, scale);
       interactions.push({
         key: prePixelate > 1 ? `T${i}` : `D${i}`,
         gain: bestGain,
@@ -379,6 +379,7 @@ function computeLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  scale: number[],
 ): Array<{ key: string; gain: number; freq: number }> {
   const linesA = extractLinePositions(layer1, 0, 0, canvasW, canvasH, radius);
   const linesB = extractLinePositions(
@@ -433,7 +434,7 @@ function computeLineInteractions(
       // Map perp range to canvas height range for consistent freq mapping
       const normalizedPerp = (bestPerp + canvasH) / (canvasH * 2);
       const rawFreq = freqMin * Math.pow(freqRatio, Math.max(0, Math.min(1, normalizedPerp)));
-      const freq = quantizeToMajorScale(rawFreq, freqMin);
+      const freq = quantizeToScale(rawFreq, freqMin, scale);
       interactions.push({ key: `L${i}`, gain: bestGain, freq });
     }
   }
@@ -453,6 +454,7 @@ function computeDotLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  scale: number[],
   prePixelate: number,
   gainCutoff: number,
 ): Array<{ key: string; gain: number; freq: number }> {
@@ -517,7 +519,7 @@ function computeDotLineInteractions(
     if (lineDist < radius) {
       const gain = 1 - lineDist / radius;
       if (gain > gainCutoff) {
-        const freq = yToFreq(dy, canvasH, freqMin, freqRatio);
+        const freq = yToFreq(dy, canvasH, freqMin, freqRatio, scale);
         interactions.push({ key: `M${i}`, gain, freq });
       }
     }

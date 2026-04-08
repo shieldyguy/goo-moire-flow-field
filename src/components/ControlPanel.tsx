@@ -16,6 +16,30 @@ import { cn } from "@/lib/utils";
 import { encodePreset, MovementData } from "@/lib/encoding/presetEncoder";
 import { uploadOgImage } from "@/lib/uploadOgImage";
 
+// ─── Color helpers ───
+const hslToHex = (hsl: string): string => {
+  const m = hsl.match(/hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
+  if (!m) return hsl; // already hex or unknown format, pass through
+  const h = parseInt(m[1]) / 360;
+  const s = parseInt(m[2]) / 100;
+  const l = parseInt(m[3]) / 100;
+  let r: number, g: number, b: number;
+  if (s === 0) { r = g = b = l; } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const hue2rgb = (t: number) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    r = hue2rgb(h + 1/3); g = hue2rgb(h); b = hue2rgb(h - 1/3);
+  }
+  const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
 // ─── Music note helpers ───
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -400,7 +424,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <Slider
                               value={[settings.goo.blur]}
                               min={1}
-                              max={100}
+                              max={30}
                               step={1}
                               onValueChange={(value) =>
                                 handleUpdateSetting("goo", "blur", value[0])
@@ -683,6 +707,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               }}
                             />
                           </div>
+
+                          <div className="flex items-center justify-between">
+                            <label className="text-sm text-zinc-200">
+                              Skip Voicing
+                            </label>
+                            <Switch
+                              checked={settings.audio?.skipVoicing ?? true}
+                              onCheckedChange={(checked) =>
+                                handleUpdateSetting("audio", "skipVoicing", checked)
+                              }
+                            />
+                          </div>
                         </>
                       )}
                     </div>
@@ -837,7 +873,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <div className="relative h-12">
                           <input
                             type="color"
-                            value={settings[activeSection].color}
+                            value={hslToHex(settings[activeSection].color)}
                             onChange={(e) =>
                               handleColorChange(
                                 activeSection,

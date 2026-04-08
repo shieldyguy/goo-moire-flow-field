@@ -18,17 +18,18 @@ uniform float u_spacing;
 uniform float u_size;
 uniform float u_rotation;
 uniform vec3  u_color;
-uniform vec2  u_wrappedOffset;
+uniform vec2  u_offset;
 
 const float AA = 1.5;
 
 void main() {
-  vec2 p = gl_FragCoord.xy - u_resolution * 0.5;
+  // Apply offset in screen space BEFORE rotation — drag always tracks pointer
+  vec2 p = gl_FragCoord.xy - u_resolution * 0.5 - u_offset;
 
+  // Rotate into layer-local space
   float c = cos(u_rotation);
   float s = sin(u_rotation);
-  vec2 local = vec2(p.x * c + p.y * s, -p.x * s + p.y * c);
-  vec2 uv = local - vec2(u_wrappedOffset.x, -u_wrappedOffset.y);
+  vec2 uv = vec2(p.x * c + p.y * s, -p.x * s + p.y * c);
 
   float shape = 0.0;
 
@@ -67,7 +68,7 @@ interface ProgramInfo {
   u_size: WebGLUniformLocation | null;
   u_rotation: WebGLUniformLocation | null;
   u_color: WebGLUniformLocation | null;
-  u_wrappedOffset: WebGLUniformLocation | null;
+  u_offset: WebGLUniformLocation | null;
 }
 
 // ─── GridRenderer ───
@@ -141,17 +142,11 @@ export class GridRenderer {
     const size = layer.size * dpr;
     const rad = (layer.rotation * Math.PI) / 180;
 
-    // DPR-scale offset to match physical-pixel coordinate space
+    // Screen-space offset in physical pixels. Y negated for WebGL coords (bottom-up).
+    // The shader applies this BEFORE rotation, so drag always tracks the pointer
+    // regardless of layer rotation. The shader's mod() handles wrapping.
     const ox = offsetX * dpr;
-    const oy = offsetY * dpr;
-
-    // Compute wrapped offset in rotation-local space
-    const cosR = Math.cos(rad);
-    const sinR = Math.sin(rad);
-    const localX = ox * cosR + oy * sinR;
-    const localY = -ox * sinR + oy * cosR;
-    const wrappedLocalX = ((localX % spacing) + spacing) % spacing;
-    const wrappedLocalY = ((localY % spacing) + spacing) % spacing;
+    const oy = -offsetY * dpr;
 
     let rgb = this.colorCache.get(layer.color);
     if (!rgb) {
@@ -165,7 +160,7 @@ export class GridRenderer {
     gl.uniform1f(info.u_size, size);
     gl.uniform1f(info.u_rotation, rad);
     gl.uniform3f(info.u_color, r, g, b);
-    gl.uniform2f(info.u_wrappedOffset, wrappedLocalX, wrappedLocalY);
+    gl.uniform2f(info.u_offset, ox, oy);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
@@ -199,7 +194,7 @@ export class GridRenderer {
       u_size: gl.getUniformLocation(program, "u_size"),
       u_rotation: gl.getUniformLocation(program, "u_rotation"),
       u_color: gl.getUniformLocation(program, "u_color"),
-      u_wrappedOffset: gl.getUniformLocation(program, "u_wrappedOffset"),
+      u_offset: gl.getUniformLocation(program, "u_offset"),
     };
     this.programs.set(shapeKey, info);
     return info;
