@@ -121,14 +121,17 @@ const Index = () => {
             enablePinchZoom: true,
             enablePinchRotate: true,
           },
-          // Audio is never persisted in presets — always start silent
+          // Restore audio settings from preset, but always start with audio off
+          // (browser requires user gesture to start AudioContext anyway)
           audio: {
+            ...(decodedSettings.audio || {
+              masterVolume: 0.3,
+              interactionRadius: 0.1,
+              frequencyRange: { min: 80, max: 800 },
+              rampTimeMs: 25,
+              maxVoices: 64,
+            }),
             enabled: false,
-            masterVolume: 0.3,
-            interactionRadius: 0.1,
-            frequencyRange: { min: 80, max: 800 },
-            rampTimeMs: 25,
-            maxVoices: 64,
           },
         } as AppSettings;
 

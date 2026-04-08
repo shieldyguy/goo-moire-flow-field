@@ -1,11 +1,18 @@
-// V3 binary format: 31 bytes total
-// Byte 0:     version (3)
+// V4 binary format: 41 bytes total (v3 was 31)
+// Byte 0:     version (4)
 // Bytes 1-12: Layer 1
 //   1-2: spacing*100 (uint16)  3-4: size*100 (uint16)  5-6: rotation*10 (uint16)
 //   7: R  8: G  9: B  10: type  11: numShapes  12: strokeWidth*10
 // Bytes 13-24: Layer 2 (same layout)
 // Bytes 25-29: Goo (enabled, blur, threshold, prePixelate, postPixelate)
 // Byte 30: Touch flags (bit0=pinchZoom, bit1=pinchRotate)
+// Bytes 31-40: Audio
+//   31: flags (bit0=enabled)
+//   32-33: masterVolume*1000 (uint16)
+//   34-35: interactionRadius*10000 (uint16)
+//   36-37: frequencyRange.min (uint16)
+//   38-39: frequencyRange.max (uint16)
+//   40: rampTimeMs (uint8)
 
 const TYPE_TO_ID: Record<string, number> = { dots: 0, lines: 1, squares: 2 };
 const ID_TO_TYPE = ["dots", "lines", "squares"] as const;
@@ -33,6 +40,15 @@ interface TouchSettings {
   enablePinchRotate: boolean;
 }
 
+interface AudioSettings {
+  enabled: boolean;
+  masterVolume: number;
+  interactionRadius: number;
+  frequencyRange: { min: number; max: number };
+  rampTimeMs: number;
+  maxVoices: number;
+}
+
 interface PresetData {
   version?: number;
   settings: {
@@ -40,6 +56,7 @@ interface PresetData {
     layer2: LayerSettings;
     goo: GooSettings;
     touch?: TouchSettings;
+    audio?: AudioSettings;
   };
 }
 
@@ -72,6 +89,14 @@ const DEFAULT_SETTINGS: PresetData["settings"] = {
   touch: {
     enablePinchZoom: true,
     enablePinchRotate: true,
+  },
+  audio: {
+    enabled: false,
+    masterVolume: 0.3,
+    interactionRadius: 0.1,
+    frequencyRange: { min: 80, max: 800 },
+    rampTimeMs: 25,
+    maxVoices: 64,
   },
 };
 
@@ -157,12 +182,12 @@ function fromUrlBase64(encoded: string): string {
   return atob(base64);
 }
 
-// Main encoding function - binary pack into 31 bytes
+// Main encoding function - binary pack into 41 bytes (v4)
 export const encodePreset = (settings: PresetData["settings"]): string => {
-  const buf = new Uint8Array(31);
+  const buf = new Uint8Array(41);
   const view = new DataView(buf.buffer);
 
-  buf[0] = 3; // version
+  buf[0] = 4; // version
 
   encodeLayer(view, buf, 1, settings.layer1);
   encodeLayer(view, buf, 13, settings.layer2);
@@ -179,6 +204,15 @@ export const encodePreset = (settings: PresetData["settings"]): string => {
     (settings.touch?.enablePinchZoom !== false ? 1 : 0) |
     (settings.touch?.enablePinchRotate !== false ? 2 : 0);
 
+  // Audio
+  const audio = settings.audio ?? DEFAULT_SETTINGS.audio!;
+  buf[31] = audio.enabled ? 1 : 0;
+  view.setUint16(32, Math.round(audio.masterVolume * 1000));
+  view.setUint16(34, Math.round(audio.interactionRadius * 10000));
+  view.setUint16(36, Math.round(audio.frequencyRange.min));
+  view.setUint16(38, Math.round(audio.frequencyRange.max));
+  buf[40] = Math.round(audio.rampTimeMs);
+
   return toUrlBase64(buf);
 };
 
@@ -190,6 +224,7 @@ const mergeWithDefaults = (
     layer2: { ...DEFAULT_SETTINGS.layer2, ...settings.layer2 },
     goo: { ...DEFAULT_SETTINGS.goo, ...settings.goo },
     touch: { ...DEFAULT_SETTINGS.touch, ...settings.touch },
+    audio: { ...DEFAULT_SETTINGS.audio!, ...settings.audio },
   };
 };
 
@@ -218,14 +253,45 @@ function decodeV3(binary: string): PresetData["settings"] {
   };
 }
 
-// Main decoding function - handles v0-v2 JSON and v3 binary
+// Decode v4 binary format (v3 + audio)
+function decodeV4(binary: string): PresetData["settings"] {
+  // v4 includes everything from v3 plus audio bytes
+  const base = decodeV3(binary);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buf[i] = binary.charCodeAt(i);
+  }
+  const view = new DataView(buf.buffer);
+
+  return {
+    ...base,
+    audio: {
+      enabled: buf[31] === 1,
+      masterVolume: view.getUint16(32) / 1000,
+      interactionRadius: view.getUint16(34) / 10000,
+      frequencyRange: {
+        min: view.getUint16(36),
+        max: view.getUint16(38),
+      },
+      rampTimeMs: buf[40],
+      maxVoices: 64,
+    },
+  };
+}
+
+// Main decoding function - handles v0-v2 JSON, v3 and v4 binary
 export const decodePreset = (encoded: string): PresetData["settings"] => {
   try {
     const binary = fromUrlBase64(encoded);
 
+    // v4 binary
+    if (binary.charCodeAt(0) === 4) {
+      return decodeV4(binary);
+    }
+
     // v3 binary: first byte is 3 (not '{' which is 123)
     if (binary.charCodeAt(0) === 3) {
-      return decodeV3(binary);
+      return mergeWithDefaults(decodeV3(binary));
     }
 
     // v0-v2: JSON-based
