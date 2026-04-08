@@ -181,6 +181,10 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const last = samples[samples.length - 1];
     const dt = (last.t - first.t) / 1000; // seconds
     if (dt < 0.016) return { vx: 0, vy: 0 };
+    // If the user stopped moving before releasing (last sample is stale),
+    // they intended to stop — no drift
+    const now = performance.now();
+    if (now - last.t > 80) return { vx: 0, vy: 0 };
     return {
       vx: (last.x - first.x) / dt,
       vy: (last.y - first.y) / dt,
