@@ -82,15 +82,6 @@ function yToFreq(
 }
 
 /**
- * Quantize a position to a grid, simulating pre-pixelate's chunking effect.
- * When prePixelate=1 (off), returns the position unchanged.
- */
-function quantizePosition(value: number, prePixelate: number): number {
-  if (prePixelate <= 1) return value;
-  return Math.floor(value / prePixelate) * prePixelate + prePixelate / 2;
-}
-
-/**
  * React hook that manages the full sonification pipeline:
  * - For dots: 2D spatial hash proximity between dot grids
  * - For lines: 1D perpendicular distance between line grids
@@ -296,8 +287,16 @@ function computeDotInteractions(
   hash.clear();
   hash.insertAll(gridB.positions, gridB.count);
 
-  const interactions: Array<{ key: string; gain: number; freq: number }> = [];
   const neighbors = neighborsBuffer.current;
+  const useTiling = prePixelate > 1;
+
+  // When prePixelate is active, group interactions by spatial tile — one voice
+  // per tile, matching how the visual pixelate merges nearby pixels into blocks.
+  // When off, one voice per dot-A (original behavior).
+  const tileMap = useTiling
+    ? new Map<string, { gainSum: number; count: number; ySum: number }>()
+    : null;
+  const interactions: Array<{ key: string; gain: number; freq: number }> = [];
 
   for (let i = 0; i < gridA.count; i++) {
     const ax = gridA.positions[i * 2];
@@ -307,6 +306,7 @@ function computeDotInteractions(
     hash.queryNeighbors(ax, ay, neighbors);
 
     let bestGain = 0;
+    let bestBx = 0;
     let bestBy = 0;
 
     for (let n = 0; n < neighbors.length; n++) {
@@ -322,21 +322,43 @@ function computeDotInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
+          bestBx = bx;
           bestBy = by;
         }
       }
     }
 
     if (bestGain > 0) {
-      // Pre-pixelate quantizes gain into discrete steps (sharp volume jumps)
-      // and frequency into pitch blocks — but does NOT affect which dots interact
-      const quantizedGain = prePixelate > 1
-        ? Math.round(bestGain * prePixelate) / prePixelate
-        : bestGain;
-      if (quantizedGain < 0.001) continue;
-      const freqY = prePixelate > 1 ? quantizePosition(bestBy, prePixelate) : bestBy;
-      const freq = yToFreq(freqY, canvasH, freqMin, freqRatio);
-      interactions.push({ key: `D${i}`, gain: quantizedGain, freq });
+      if (tileMap) {
+        // Group into spatial tile at interaction midpoint
+        const midX = (ax + bestBx) / 2;
+        const midY = (ay + bestBy) / 2;
+        const tileX = Math.floor(midX / prePixelate);
+        const tileY = Math.floor(midY / prePixelate);
+        const tileKey = `T${tileX}_${tileY}`;
+        const existing = tileMap.get(tileKey);
+        if (existing) {
+          existing.gainSum += bestGain;
+          existing.count++;
+          existing.ySum += midY;
+        } else {
+          tileMap.set(tileKey, { gainSum: bestGain, count: 1, ySum: midY });
+        }
+      } else {
+        const freq = yToFreq(bestBy, canvasH, freqMin, freqRatio);
+        interactions.push({ key: `D${i}`, gain: bestGain, freq });
+      }
+    }
+  }
+
+  // Emit one voice per tile
+  if (tileMap) {
+    for (const [key, acc] of tileMap) {
+      const avgGain = acc.gainSum / acc.count;
+      if (avgGain < 0.001) continue;
+      const avgY = acc.ySum / acc.count;
+      const freq = yToFreq(avgY, canvasH, freqMin, freqRatio);
+      interactions.push({ key, gain: avgGain, freq });
     }
   }
 
@@ -452,6 +474,10 @@ function computeDotLineInteractions(
   }
   sortedLines.sort((a, b) => a.perp - b.perp);
 
+  const useTiling = prePixelate > 1;
+  const tileMap = useTiling
+    ? new Map<string, { gainSum: number; count: number; ySum: number }>()
+    : null;
   const interactions: Array<{ key: string; gain: number; freq: number }> = [];
 
   for (let i = 0; i < dots.count; i++) {
@@ -489,13 +515,34 @@ function computeDotLineInteractions(
     }
 
     if (bestGain > 0) {
-      const quantizedGain = prePixelate > 1
-        ? Math.round(bestGain * prePixelate) / prePixelate
-        : bestGain;
-      if (quantizedGain < 0.001) continue;
-      const freqY = prePixelate > 1 ? quantizePosition(dy, prePixelate) : dy;
-      const freq = yToFreq(freqY, canvasH, freqMin, freqRatio);
-      interactions.push({ key: `M${i}`, gain: quantizedGain, freq });
+      if (tileMap) {
+        // Tile at the dot's position (the interaction point for dot-line)
+        const tileX = Math.floor(dx / prePixelate);
+        const tileY = Math.floor(dy / prePixelate);
+        const tileKey = `T${tileX}_${tileY}`;
+        const existing = tileMap.get(tileKey);
+        if (existing) {
+          existing.gainSum += bestGain;
+          existing.count++;
+          existing.ySum += dy;
+        } else {
+          tileMap.set(tileKey, { gainSum: bestGain, count: 1, ySum: dy });
+        }
+      } else {
+        const freq = yToFreq(dy, canvasH, freqMin, freqRatio);
+        interactions.push({ key: `M${i}`, gain: bestGain, freq });
+      }
+    }
+  }
+
+  // Emit one voice per tile
+  if (tileMap) {
+    for (const [key, acc] of tileMap) {
+      const avgGain = acc.gainSum / acc.count;
+      if (avgGain < 0.001) continue;
+      const avgY = acc.ySum / acc.count;
+      const freq = yToFreq(avgY, canvasH, freqMin, freqRatio);
+      interactions.push({ key, gain: avgGain, freq });
     }
   }
 
