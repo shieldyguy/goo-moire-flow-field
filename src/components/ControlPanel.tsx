@@ -572,18 +572,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             </div>
                             <Slider
                               value={[
-                                settings.audio?.interactionRadius ?? 1,
+                                // Expo → linear: t = log(val/min) / log(max/min)
+                                Math.log(
+                                  (settings.audio?.interactionRadius ?? 0.1) /
+                                    0.005,
+                                ) /
+                                  Math.log(2.0 / 0.005) *
+                                  100,
                               ]}
-                              min={0.005}
-                              max={0.3}
-                              step={0.005}
-                              onValueChange={(value) =>
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              onValueChange={(value) => {
+                                // Linear → expo: val = min * (max/min)^(t/100)
+                                const t = value[0] / 100;
+                                const val =
+                                  0.005 * Math.pow(2.0 / 0.005, t);
                                 handleUpdateSetting(
                                   "audio",
                                   "interactionRadius",
-                                  value[0],
-                                )
-                              }
+                                  Math.round(val * 10000) / 10000,
+                                );
+                              }}
                             />
                           </div>
 
