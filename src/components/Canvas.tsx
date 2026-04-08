@@ -133,6 +133,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     offset,
     cssW,
     cssH,
+    webglCanvasRef,
   );
 
   // Drift refs

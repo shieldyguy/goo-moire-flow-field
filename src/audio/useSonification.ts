@@ -23,9 +23,77 @@ interface LayerConfig {
 }
 
 /**
+ * Convert RGB to hue (0-1). Returns 0 for achromatic pixels.
+ */
+function rgbToHue(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+
+  if (delta === 0) return 0; // achromatic
+
+  let h: number;
+  if (max === r) {
+    h = ((g - b) / delta) % 6;
+  } else if (max === g) {
+    h = (b - r) / delta + 2;
+  } else {
+    h = (r - g) / delta + 4;
+  }
+
+  h /= 6;
+  if (h < 0) h += 1;
+  return h;
+}
+
+/**
+ * Grab the full canvas ImageData once. Returns null if canvas isn't available.
+ */
+function getCanvasPixels(
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+): ImageData | null {
+  const canvas = canvasRef.current;
+  if (!canvas) return null;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+/**
+ * Sample the hue at a CSS-pixel position from pre-fetched ImageData.
+ * Returns hue as 0-1, or -1 if the pixel is too dark to have meaningful hue.
+ */
+function sampleHue(
+  imageData: ImageData,
+  cssX: number,
+  cssY: number,
+  dpr: number,
+): number {
+  // Convert CSS pixels to canvas pixels
+  const px = Math.round(cssX * dpr);
+  const py = Math.round(cssY * dpr);
+
+  if (px < 0 || px >= imageData.width || py < 0 || py >= imageData.height) {
+    return -1;
+  }
+
+  const idx = (py * imageData.width + px) * 4;
+  const r = imageData.data[idx];
+  const g = imageData.data[idx + 1];
+  const b = imageData.data[idx + 2];
+
+  // If pixel is very dark, hue is meaningless
+  const brightness = Math.max(r, g, b);
+  if (brightness < 10) return -1;
+
+  return rgbToHue(r, g, b);
+}
+
+/**
  * React hook that manages the full sonification pipeline:
  * - For dots: 2D spatial hash proximity between dot grids
  * - For lines: 1D perpendicular distance between line grids
+ * - Frequency derived from canvas pixel color (hue) at each interaction point
  */
 export function useSonification(
   audioSettings: AudioSettings,
@@ -34,6 +102,7 @@ export function useSonification(
   offset: { x: number; y: number },
   canvasW: number,
   canvasH: number,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
 ) {
   const engineRef = useRef<AudioEngine | null>(null);
   const hasPlayedTestTone = useRef(false);
@@ -92,6 +161,10 @@ export function useSonification(
     const { min: freqMin, max: freqMax } = audioSettings.frequencyRange;
     const freqRatio = freqMax / freqMin;
 
+    // Grab canvas pixels once for color-based frequency mapping
+    const dpr = window.devicePixelRatio || 1;
+    const pixels = getCanvasPixels(canvasRef);
+
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
     const bothDots = layer1.type === "dots" && layer2.type === "dots";
@@ -109,6 +182,8 @@ export function useSonification(
         freqRatio,
         spatialHashRef,
         neighborsBuffer,
+        pixels,
+        dpr,
       );
     } else if (bothLines) {
       allInteractions = computeLineInteractions(
@@ -120,6 +195,8 @@ export function useSonification(
         radius,
         freqMin,
         freqRatio,
+        pixels,
+        dpr,
       );
     } else {
       // Mixed: one layer is dots, the other is lines.
@@ -145,6 +222,8 @@ export function useSonification(
         radius,
         freqMin,
         freqRatio,
+        pixels,
+        dpr,
       );
     }
 
@@ -190,6 +269,17 @@ export function useSonification(
 
 // ─── Dot-mode interaction computation ───
 
+/**
+ * Map a hue (0-1) to a frequency using log scaling.
+ */
+function hueToFreq(
+  hue: number,
+  freqMin: number,
+  freqRatio: number,
+): number {
+  return freqMin * Math.pow(freqRatio, hue);
+}
+
 function computeDotInteractions(
   layer1: LayerConfig,
   layer2: LayerConfig,
@@ -201,6 +291,8 @@ function computeDotInteractions(
   freqRatio: number,
   spatialHashRef: React.MutableRefObject<SpatialHash | null>,
   neighborsBuffer: React.MutableRefObject<number[]>,
+  pixels: ImageData | null,
+  dpr: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const gridA = extractDotPositions(layer1, 0, 0, canvasW, canvasH, radius);
   const gridB = extractDotPositions(
@@ -232,7 +324,6 @@ function computeDotInteractions(
     hash.queryNeighbors(ax, ay, neighbors);
 
     let bestGain = 0;
-    let bestFreq = 0;
 
     for (let n = 0; n < neighbors.length; n++) {
       const j = neighbors[n];
@@ -247,15 +338,16 @@ function computeDotInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          // Proximity → frequency: close = high, far = low
-          const proximity = 1 - dist / radius; // 0 at edge, 1 at overlap
-          bestFreq = freqMin * Math.pow(freqRatio, proximity);
         }
       }
     }
 
     if (bestGain > 0) {
-      interactions.push({ key: `D${i}`, gain: bestGain, freq: bestFreq });
+      // Frequency from canvas pixel color — dark pixels produce no voice
+      const hue = pixels ? sampleHue(pixels, ax, ay, dpr) : -1;
+      if (hue < 0) continue;
+      const freq = hueToFreq(hue, freqMin, freqRatio);
+      interactions.push({ key: `D${i}`, gain: bestGain, freq });
     }
   }
 
@@ -273,6 +365,8 @@ function computeLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  pixels: ImageData | null,
+  dpr: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const linesA = extractLinePositions(layer1, 0, 0, canvasW, canvasH, radius);
   const linesB = extractLinePositions(
@@ -286,14 +380,9 @@ function computeLineInteractions(
 
   if (linesA.count === 0 || linesB.count === 0) return [];
 
-  // Sort grid B perpendicular positions for efficient nearest-neighbor search
-  const sortedB: Array<{ perp: number; worldX: number; idx: number }> = [];
+  const sortedB: Array<{ perp: number; idx: number }> = [];
   for (let j = 0; j < linesB.count; j++) {
-    sortedB.push({
-      perp: linesB.perpPositions[j],
-      worldX: linesB.worldX[j],
-      idx: j,
-    });
+    sortedB.push({ perp: linesB.perpPositions[j], idx: j });
   }
   sortedB.sort((a, b) => a.perp - b.perp);
 
@@ -303,7 +392,6 @@ function computeLineInteractions(
     const perpA = linesA.perpPositions[i];
     const wxA = linesA.worldX[i];
 
-    // Binary search for the closest line in B
     let lo = 0;
     let hi = sortedB.length - 1;
     while (lo < hi) {
@@ -315,9 +403,7 @@ function computeLineInteractions(
       }
     }
 
-    // Check the nearest few lines in B (around the insertion point)
     let bestGain = 0;
-    let bestFreq = 0;
 
     for (
       let k = Math.max(0, lo - 2);
@@ -330,15 +416,18 @@ function computeLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          // Proximity → frequency: close = high, far = low
-          const proximity = 1 - dist / radius;
-          bestFreq = freqMin * Math.pow(freqRatio, proximity);
         }
       }
     }
 
     if (bestGain > 0) {
-      interactions.push({ key: `L${i}`, gain: bestGain, freq: bestFreq });
+      // Sample color at line center — dark pixels produce no voice
+      const sampleX = Math.max(0, Math.min(canvasW, wxA));
+      const sampleY = canvasH / 2;
+      const hue = pixels ? sampleHue(pixels, sampleX, sampleY, dpr) : -1;
+      if (hue < 0) continue;
+      const freq = hueToFreq(hue, freqMin, freqRatio);
+      interactions.push({ key: `L${i}`, gain: bestGain, freq });
     }
   }
 
@@ -360,6 +449,8 @@ function computeDotLineInteractions(
   radius: number,
   freqMin: number,
   freqRatio: number,
+  pixels: ImageData | null,
+  dpr: number,
 ): Array<{ key: string; gain: number; freq: number }> {
   const dots = extractDotPositions(
     dotLayer,
@@ -438,9 +529,10 @@ function computeDotLineInteractions(
     }
 
     if (bestGain > 0) {
-      // Proximity → frequency: close = high, far = low
-      const proximity = 1 - bestDist / radius;
-      const freq = freqMin * Math.pow(freqRatio, proximity);
+      // Frequency from canvas pixel color at the dot's position
+      const hue = pixels ? sampleHue(pixels, dx, dy, dpr) : -1;
+      if (hue < 0) continue; // dark pixel — no voice
+      const freq = hueToFreq(hue, freqMin, freqRatio);
       interactions.push({ key: `M${i}`, gain: bestGain, freq });
     }
   }
