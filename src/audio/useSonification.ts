@@ -279,20 +279,8 @@ function computeDotInteractions(
 
   if (gridA.count === 0 || gridB.count === 0) return [];
 
-  // Quantize positions to pre-pixelate grid BEFORE proximity checks.
-  // Dots in the same pixelate block snap to the same position, creating
-  // sharp on/off transitions and rhythmic marching patterns.
-  if (prePixelate > 1) {
-    for (let i = 0; i < gridA.count; i++) {
-      gridA.positions[i * 2] = quantizePosition(gridA.positions[i * 2], prePixelate);
-      gridA.positions[i * 2 + 1] = quantizePosition(gridA.positions[i * 2 + 1], prePixelate);
-    }
-    for (let i = 0; i < gridB.count; i++) {
-      gridB.positions[i * 2] = quantizePosition(gridB.positions[i * 2], prePixelate);
-      gridB.positions[i * 2 + 1] = quantizePosition(gridB.positions[i * 2 + 1], prePixelate);
-    }
-  }
-
+  // Proximity checks use RAW positions — prePixelate does NOT create
+  // fake interactions. It only affects gain stepping and frequency quantization.
   if (!spatialHashRef.current) {
     spatialHashRef.current = new SpatialHash(radius);
   }
@@ -332,9 +320,15 @@ function computeDotInteractions(
     }
 
     if (bestGain > 0) {
-      // bestBy is already quantized (if prePixelate > 1) from the upstream pass
-      const freq = yToFreq(bestBy, canvasH, freqMin, freqRatio);
-      interactions.push({ key: `D${i}`, gain: bestGain, freq });
+      // Pre-pixelate quantizes gain into discrete steps (sharp volume jumps)
+      // and frequency into pitch blocks — but does NOT affect which dots interact
+      const quantizedGain = prePixelate > 1
+        ? Math.round(bestGain * prePixelate) / prePixelate
+        : bestGain;
+      if (quantizedGain < 0.001) continue;
+      const freqY = prePixelate > 1 ? quantizePosition(bestBy, prePixelate) : bestBy;
+      const freq = yToFreq(freqY, canvasH, freqMin, freqRatio);
+      interactions.push({ key: `D${i}`, gain: quantizedGain, freq });
     }
   }
 
@@ -437,14 +431,6 @@ function computeDotLineInteractions(
 
   if (dots.count === 0 || lines.count === 0) return [];
 
-  // Quantize dot positions to pre-pixelate grid
-  if (prePixelate > 1) {
-    for (let i = 0; i < dots.count; i++) {
-      dots.positions[i * 2] = quantizePosition(dots.positions[i * 2], prePixelate);
-      dots.positions[i * 2 + 1] = quantizePosition(dots.positions[i * 2 + 1], prePixelate);
-    }
-  }
-
   const lineRad = (lineLayer.rotation * Math.PI) / 180;
   const nx = -Math.sin(lineRad);
   const ny = Math.cos(lineRad);
@@ -495,9 +481,13 @@ function computeDotLineInteractions(
     }
 
     if (bestGain > 0) {
-      // dy is already quantized from the upstream pass
-      const freq = yToFreq(dy, canvasH, freqMin, freqRatio);
-      interactions.push({ key: `M${i}`, gain: bestGain, freq });
+      const quantizedGain = prePixelate > 1
+        ? Math.round(bestGain * prePixelate) / prePixelate
+        : bestGain;
+      if (quantizedGain < 0.001) continue;
+      const freqY = prePixelate > 1 ? quantizePosition(dy, prePixelate) : dy;
+      const freq = yToFreq(freqY, canvasH, freqMin, freqRatio);
+      interactions.push({ key: `M${i}`, gain: quantizedGain, freq });
     }
   }
 
