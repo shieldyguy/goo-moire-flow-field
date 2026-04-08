@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import { GridRenderer } from "@/lib/webgl/GridRenderer";
 
 interface WebGLCanvasProps {
@@ -57,8 +57,10 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
   // The currently displayed canvas (grid or filter output) — swapped into the DOM
   const displayCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Expose the currently displayed canvas for screenshots
-  useImperativeHandle(ref, () => displayCanvasRef.current!, []);
+  // Track which canvas is currently displayed as React state so
+  // useImperativeHandle re-exposes it when it changes.
+  const [activeCanvas, setActiveCanvas] = useState<HTMLCanvasElement | null>(null);
+  useImperativeHandle(ref, () => activeCanvas!, [activeCanvas]);
 
   // Persistent WebGL filter — never recreated
   const filterRef = useRef<any>(null);
@@ -127,6 +129,7 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
       });
       container.appendChild(outputCanvas);
       displayCanvasRef.current = outputCanvas;
+      setActiveCanvas(outputCanvas);
     }
   };
 
