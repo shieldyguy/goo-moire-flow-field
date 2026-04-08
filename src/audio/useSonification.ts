@@ -247,7 +247,9 @@ function computeDotInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          bestFreq = freqMin * Math.pow(freqRatio, ax / canvasW);
+          // Proximity → frequency: close = high, far = low
+          const proximity = 1 - dist / radius; // 0 at edge, 1 at overlap
+          bestFreq = freqMin * Math.pow(freqRatio, proximity);
         }
       }
     }
@@ -328,9 +330,9 @@ function computeLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
-          // Frequency from line A's world-space x position
-          const normX = Math.max(0, Math.min(1, wxA / canvasW));
-          bestFreq = freqMin * Math.pow(freqRatio, normX);
+          // Proximity → frequency: close = high, far = low
+          const proximity = 1 - dist / radius;
+          bestFreq = freqMin * Math.pow(freqRatio, proximity);
         }
       }
     }
@@ -417,6 +419,7 @@ function computeDotLineInteractions(
 
     // Check nearest few lines
     let bestGain = 0;
+    let bestDist = radius;
 
     for (
       let k = Math.max(0, lo - 2);
@@ -429,14 +432,15 @@ function computeDotLineInteractions(
         const gain = 1 - dist / radius;
         if (gain > bestGain) {
           bestGain = gain;
+          bestDist = dist;
         }
       }
     }
 
     if (bestGain > 0) {
-      // Frequency from the dot's world-space x position
-      const normX = Math.max(0, Math.min(1, dx / canvasW));
-      const freq = freqMin * Math.pow(freqRatio, normX);
+      // Proximity → frequency: close = high, far = low
+      const proximity = 1 - bestDist / radius;
+      const freq = freqMin * Math.pow(freqRatio, proximity);
       interactions.push({ key: `M${i}`, gain: bestGain, freq });
     }
   }
