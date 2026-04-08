@@ -93,7 +93,10 @@ export function useSonification(
     if (!engine || !engine.isReady || !audioSettings.enabled) return;
     if (canvasW === 0 || canvasH === 0) return;
 
-    const radius = audioSettings.interactionRadius;
+    // Interaction radius derived from dot sizes — the multiplier slider scales it.
+    // At 1x, dots must visually overlap to produce sound.
+    const radius =
+      ((layer1.size + layer2.size) / 2) * audioSettings.interactionRadius;
     const { min: freqMin, max: freqMax } = audioSettings.frequencyRange;
     const freqRange = freqMax - freqMin;
 
@@ -113,8 +116,8 @@ export function useSonification(
       return;
     }
 
-    // 2. Build spatial hash for grid B
-    if (!spatialHashRef.current || spatialHashRef.current === null) {
+    // 2. Build spatial hash for grid B (recreate if cell size changed)
+    if (!spatialHashRef.current) {
       spatialHashRef.current = new SpatialHash(radius);
     }
     const hash = spatialHashRef.current;
@@ -162,9 +165,11 @@ export function useSonification(
   }, [
     audioSettings,
     layer1.spacing,
+    layer1.size,
     layer1.rotation,
     layer1.type,
     layer2.spacing,
+    layer2.size,
     layer2.rotation,
     layer2.type,
     offset.x,
