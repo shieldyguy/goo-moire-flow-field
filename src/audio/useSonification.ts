@@ -288,7 +288,8 @@ function computeDotInteractions(
 
   // Proximity checks use RAW positions — prePixelate does NOT create
   // fake interactions. It only affects gain stepping and frequency quantization.
-  if (!spatialHashRef.current) {
+  // Recreate spatial hash when radius changes (cell size must match)
+  if (!spatialHashRef.current || spatialHashRef.current.cellSize !== radius) {
     spatialHashRef.current = new SpatialHash(radius);
   }
   const hash = spatialHashRef.current;

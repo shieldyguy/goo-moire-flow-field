@@ -7,7 +7,7 @@
  */
 
 export class SpatialHash {
-  private cellSize: number;
+  readonly cellSize: number;
   private invCellSize: number;
   // Map from cell key → list of dot indices stored in that cell
   private cells: Map<number, number[]> = new Map();
