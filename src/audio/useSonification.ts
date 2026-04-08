@@ -30,16 +30,22 @@ interface GooConfig {
   enabled: boolean;
 }
 
-// Major scale intervals in semitones: W W H W W W H
-// Cumulative: 0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24...
+// Every-other-note of the major scale, continuous across octave boundaries.
+// Full major scale: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15...
+// We take:          1,  3,  5,  7,  9,   11,   13,   15...
+// In semitones:     0,  4,  7, 11, 14,   17,   21,   24...
 const MAJOR_SCALE_SEMITONES: number[] = [];
 {
   const pattern = [0, 2, 4, 5, 7, 9, 11];
-  // Build 10 octaves worth
+  // Build the full scale across 10 octaves, then take every other note
+  const full: number[] = [];
   for (let octave = 0; octave < 10; octave++) {
     for (const s of pattern) {
-      MAJOR_SCALE_SEMITONES.push(octave * 12 + s);
+      full.push(octave * 12 + s);
     }
+  }
+  for (let i = 0; i < full.length; i += 2) {
+    MAJOR_SCALE_SEMITONES.push(full[i]);
   }
 }
 
