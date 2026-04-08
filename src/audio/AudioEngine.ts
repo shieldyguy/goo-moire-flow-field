@@ -65,7 +65,7 @@ export class AudioEngine {
   setMasterVolume(volume: number): void {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(
-        Math.max(0, Math.min(1, volume)),
+        Math.max(0, volume),
         this.ctx.currentTime,
         AudioEngine.GAIN_TIME_CONSTANT,
       );

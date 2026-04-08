@@ -530,7 +530,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 (settings.audio?.masterVolume ?? 0.3) * 100,
                               ]}
                               min={0}
-                              max={100}
+                              max={500}
                               step={1}
                               onValueChange={(value) =>
                                 handleUpdateSetting(
@@ -565,30 +565,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   "audio",
                                   "interactionRadius",
-                                  value[0],
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between">
-                              <label className="text-sm text-zinc-200">
-                                Max Voices
-                              </label>
-                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
-                                {settings.audio?.maxVoices ?? 128}
-                              </span>
-                            </div>
-                            <Slider
-                              value={[settings.audio?.maxVoices ?? 128]}
-                              min={1}
-                              max={256}
-                              step={1}
-                              onValueChange={(value) =>
-                                handleUpdateSetting(
-                                  "audio",
-                                  "maxVoices",
                                   value[0],
                                 )
                               }
