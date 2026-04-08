@@ -275,7 +275,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    stopDrift();
     const currentTime = new Date().getTime();
     const timeDiff = currentTime - lastClickTimeRef.current;
 
@@ -286,10 +285,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     }
 
     if (timeDiff < 300) {
+      // Double-click opens menu — don't stop drift so the pattern keeps moving
       setShowMenu(true);
       setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
-      // Normal drag behavior
+      // Normal drag behavior — stop drift and start a new drag
+      stopDrift();
       setIsDragging(true);
       dragStartRef.current = {
         x: e.clientX - offset.x,
@@ -325,7 +326,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     // These handlers will be able to use preventDefault() without warnings
     const handleTouchStartEvent = (e: TouchEvent) => {
       e.preventDefault(); // This works with {passive: false}
-      stopDrift();
 
       if (e.touches.length > 1) {
         return;
@@ -341,6 +341,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       }
 
       if (timeDiff < 250 && timeDiff > 50) {
+        // Double-tap opens menu — don't stop drift
         setMenuPosition({ x: touch.clientX, y: touch.clientY });
         setShowMenu(true);
         return;
@@ -348,6 +349,8 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
       lastClickTimeRef.current = currentTime;
 
+      // Single touch — stop drift and start a new drag
+      stopDrift();
       setIsDragging(true);
       dragStartRef.current = {
         x: touch.clientX - offset.x,
@@ -401,7 +404,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
-    stopDrift();
     setShowMenu((prev) => !prev);
     setMenuPosition({ x: e.clientX, y: e.clientY });
   };
@@ -487,12 +489,11 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     setIsRotating(false);
   };
 
-  // Handle double tap to open menu
+  // Handle double tap to open menu — don't stop drift
   const handleDoubleTap = (x: number, y: number) => {
     // Only respond to double tap if not currently rotating
     if (isRotating) return;
 
-    stopDrift();
     setMenuPosition({ x, y });
     setShowMenu(true);
   };
