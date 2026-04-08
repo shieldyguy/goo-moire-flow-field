@@ -289,8 +289,9 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       setShowMenu(true);
       setMenuPosition({ x: e.clientX, y: e.clientY });
     } else {
-      // Normal drag behavior — stop drift and start a new drag
-      stopDrift();
+      // Prepare for drag but don't stop drift yet — if this turns out to be
+      // the first click of a double-click, drift survives. Drift is stopped
+      // lazily on the first actual mouse move.
       setIsDragging(true);
       dragStartRef.current = {
         x: e.clientX - offset.x,
@@ -301,8 +302,16 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     lastClickTimeRef.current = currentTime;
   };
 
+  const hasDragMovedRef = useRef(false);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
+
+    // Stop drift on first actual move, not on mousedown
+    if (!hasDragMovedRef.current) {
+      stopDrift();
+      hasDragMovedRef.current = true;
+    }
 
     const newX = e.clientX - dragStartRef.current.x;
     const newY = e.clientY - dragStartRef.current.y;
@@ -311,11 +320,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   };
 
   const handleMouseUp = () => {
-    if (isDragging) {
+    if (isDragging && hasDragMovedRef.current) {
       const { vx, vy } = computeDriftVelocity();
       startDrift(vx, vy);
     }
     setIsDragging(false);
+    hasDragMovedRef.current = false;
   };
 
   // Set up non-passive event listeners properly
@@ -349,8 +359,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
       lastClickTimeRef.current = currentTime;
 
-      // Single touch — stop drift and start a new drag
-      stopDrift();
+      // Prepare for drag but don't stop drift yet — same lazy approach as mouse
       setIsDragging(true);
       dragStartRef.current = {
         x: touch.clientX - offset.x,
@@ -362,6 +371,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       e.preventDefault();
 
       if (!isDragging) return;
+
+      // Stop drift on first actual move
+      if (!hasDragMovedRef.current) {
+        stopDrift();
+        hasDragMovedRef.current = true;
+      }
 
       const touch = e.touches[0];
       const deltaX = touch.clientX - dragStartRef.current.x;
@@ -376,11 +391,12 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
     const handleTouchEndEvent = (e: TouchEvent) => {
       e.preventDefault();
-      if (isDragging) {
+      if (isDragging && hasDragMovedRef.current) {
         const { vx, vy } = computeDriftVelocity();
         startDrift(vx, vy);
       }
       setIsDragging(false);
+      hasDragMovedRef.current = false;
     };
 
     // Add event listeners with {passive: false} option
