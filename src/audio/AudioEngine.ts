@@ -23,11 +23,18 @@ interface AudioConfig {
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  // Dedicated gain node for voice-count normalization — sits between voices
+  // and masterGain so that fluctuations in voice count produce a single smooth
+  // ramp instead of N simultaneous per-voice jumps.
+  private normGain: GainNode | null = null;
   private voices: Map<string, Voice> = new Map();
   private activeCount = 0;
 
   /** How long a voice must be silent before we garbage-collect it (seconds). */
-  private static VOICE_CLEANUP_DELAY = 0.5;
+  private static VOICE_CLEANUP_DELAY = 1.0;
+
+  /** Time constant for setTargetAtTime — controls smoothing speed. */
+  private static GAIN_TIME_CONSTANT = 0.03; // ~30ms
 
   get isReady(): boolean {
     return this.ctx !== null && this.ctx.state === "running";
@@ -42,6 +49,11 @@ export class AudioEngine {
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.3;
+
+      // Normalization gain sits between voices and master
+      this.normGain = this.ctx.createGain();
+      this.normGain.gain.value = 1;
+      this.normGain.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
     }
 
@@ -55,7 +67,7 @@ export class AudioEngine {
       this.masterGain.gain.setTargetAtTime(
         Math.max(0, Math.min(1, volume)),
         this.ctx.currentTime,
-        0.02,
+        AudioEngine.GAIN_TIME_CONSTANT,
       );
     }
   }
@@ -71,14 +83,17 @@ export class AudioEngine {
 
     osc.type = "sine";
     osc.frequency.value = 440;
-    gain.gain.value = 0.15;
+    gain.gain.value = 0;
 
     osc.connect(gain);
     gain.connect(this.masterGain);
 
     const now = this.ctx.currentTime;
-    osc.start(now);
+    // Proper anchor → ramp pattern to avoid clicks
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.15, now + 0.02);
     gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    osc.start(now);
     osc.stop(now + 0.6);
 
     osc.onended = () => {
@@ -89,7 +104,8 @@ export class AudioEngine {
 
   /**
    * Core per-frame update. Receives a map of voice keys → target gains and
-   * frequencies, ramps each voice to its target, and cleans up silent voices.
+   * frequencies, smoothly ramps each voice to its target, and cleans up
+   * silent voices.
    *
    * @param targets  Map of voiceKey → { gain: 0-1, freq: Hz }
    * @param config   Current audio settings
@@ -98,34 +114,35 @@ export class AudioEngine {
     targets: Map<string, { gain: number; freq: number }>,
     config: AudioConfig,
   ): void {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.normGain) return;
 
     const now = this.ctx.currentTime;
-    const rampTime = config.rampTimeMs / 1000;
+    const tau = config.rampTimeMs / 1000;
 
-    // Scale per-voice gain so the sum doesn't clip.
-    // 1/sqrt(N) keeps perceived loudness roughly constant as voice count changes.
+    // Update the normalization gain node based on voice count.
+    // Using setTargetAtTime for a smooth exponential approach — no clicks
+    // when voice count fluctuates frame to frame.
     const voiceCount = Math.max(targets.size, 1);
-    const voiceScale = 1 / Math.sqrt(voiceCount);
+    const normValue = 1 / Math.sqrt(voiceCount);
+    this.normGain.gain.setTargetAtTime(normValue, now, tau);
 
     // Update or create voices for all active targets
     for (const [key, target] of targets) {
       let voice = this.voices.get(key);
 
       if (!voice) {
-        // Voice cap is enforced upstream (useSonification sorts by gain
-        // and only sends the top N targets), so we always create here.
         voice = this.createVoice(target.freq);
         this.voices.set(key, voice);
         this.activeCount++;
       }
 
-      // Update frequency if it changed significantly (dot moved horizontally)
-      voice.osc.frequency.setTargetAtTime(target.freq, now, rampTime);
+      // Smooth frequency update
+      voice.osc.frequency.setTargetAtTime(target.freq, now, tau);
 
-      // Ramp gain — scaled by 1/sqrt(N) to prevent clipping
-      const scaledGain = target.gain * voiceScale;
-      voice.gain.gain.linearRampToValueAtTime(scaledGain, now + rampTime);
+      // Smooth gain update using setTargetAtTime — unlike linearRampToValueAtTime,
+      // this doesn't require an anchor and handles being called every frame
+      // without cancellation artifacts.
+      voice.gain.gain.setTargetAtTime(target.gain, now, tau);
       voice.targetGain = target.gain;
 
       if (target.gain > 0) {
@@ -139,7 +156,7 @@ export class AudioEngine {
       if (!targets.has(key)) {
         // Not in this frame's targets — fade to zero
         if (voice.targetGain > 0) {
-          voice.gain.gain.linearRampToValueAtTime(0, now + rampTime);
+          voice.gain.gain.setTargetAtTime(0, now, tau);
           voice.targetGain = 0;
         }
       }
@@ -171,7 +188,7 @@ export class AudioEngine {
     gain.gain.value = 0;
 
     osc.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.normGain!);
     osc.start();
 
     return {
@@ -195,7 +212,6 @@ export class AudioEngine {
   }
 
   dispose(): void {
-    // Stop all voices
     for (const voice of this.voices.values()) {
       voice.osc.stop();
       voice.osc.disconnect();
@@ -208,6 +224,7 @@ export class AudioEngine {
       this.ctx.close();
       this.ctx = null;
       this.masterGain = null;
+      this.normGain = null;
     }
   }
 }
