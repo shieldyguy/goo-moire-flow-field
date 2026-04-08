@@ -99,7 +99,7 @@ export function useSonification(
   goo: GooConfig,
 ) {
   const engineRef = useRef<AudioEngine | null>(null);
-  const hasPlayedTestTone = useRef(false);
+
   const spatialHashRef = useRef<SpatialHash | null>(null);
   const neighborsBuffer = useRef<number[]>([]);
 
@@ -117,11 +117,6 @@ export function useSonification(
       // Sync master volume to the current setting immediately —
       // the useEffect won't fire if the value hasn't changed since mount
       engine.setMasterVolume(audioSettings.masterVolume);
-
-      if (!hasPlayedTestTone.current) {
-        engine.playTestTone();
-        hasPlayedTestTone.current = true;
-      }
 
       return true;
     } catch (e) {
