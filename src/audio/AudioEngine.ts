@@ -103,6 +103,11 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     const rampTime = config.rampTimeMs / 1000;
 
+    // Scale per-voice gain so the sum doesn't clip.
+    // 1/sqrt(N) keeps perceived loudness roughly constant as voice count changes.
+    const voiceCount = Math.max(targets.size, 1);
+    const voiceScale = 1 / Math.sqrt(voiceCount);
+
     // Update or create voices for all active targets
     for (const [key, target] of targets) {
       let voice = this.voices.get(key);
@@ -118,8 +123,9 @@ export class AudioEngine {
       // Update frequency if it changed significantly (dot moved horizontally)
       voice.osc.frequency.setTargetAtTime(target.freq, now, rampTime);
 
-      // Ramp gain
-      voice.gain.gain.linearRampToValueAtTime(target.gain, now + rampTime);
+      // Ramp gain — scaled by 1/sqrt(N) to prevent clipping
+      const scaledGain = target.gain * voiceScale;
+      voice.gain.gain.linearRampToValueAtTime(scaledGain, now + rampTime);
       voice.targetGain = target.gain;
 
       if (target.gain > 0) {
