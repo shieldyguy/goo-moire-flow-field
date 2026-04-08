@@ -169,10 +169,8 @@ export function useSonification(
     const freqRatio = freqMax / freqMin;
     const prePixelate = goo.enabled ? goo.prePixelate : 1;
 
-    // The visual contrast(20) is effectively a step function.
-    // threshold/128 is the brightness scalar applied before the contrast crush.
-    // We model this as a hard gain cutoff: interactions below this are silent.
-    const gainCutoff = goo.enabled ? 1 - (goo.threshold / 128) * 0.8 : 0;
+    // Gain cutoff — can be used for threshold gating later
+    const gainCutoff = 0;
 
     let allInteractions: Array<{ key: string; gain: number; freq: number }>;
 
@@ -265,32 +263,20 @@ export function useSonification(
 // ─── Dot-mode interaction computation ───
 
 /**
- * Snap positions to a pixelate grid and deduplicate — one dot per tile per grid.
- * Returns a new positions array and count with unique tile-center positions.
+ * Decimate position precision in-place — round coordinates to the nearest
+ * multiple of stepSize. Like bit-reducing the location accuracy.
+ * Dots still exist at their original count, they just can't be at
+ * positions between grid lines anymore.
  */
-function quantizeAndDedup(
+function decimatePositions(
   positions: Float32Array,
   count: number,
-  tileSize: number,
-): { positions: Float32Array; count: number } {
-  const seen = new Set<number>();
-  const out = new Float32Array(count * 2); // worst case: no dedup
-  let outCount = 0;
-
+  stepSize: number,
+): void {
   for (let i = 0; i < count; i++) {
-    const tx = Math.floor(positions[i * 2] / tileSize);
-    const ty = Math.floor(positions[i * 2 + 1] / tileSize);
-    const key = ty * 100003 + tx; // hash to single int
-    if (!seen.has(key)) {
-      seen.add(key);
-      // Snap to tile center
-      out[outCount * 2] = tx * tileSize + tileSize / 2;
-      out[outCount * 2 + 1] = ty * tileSize + tileSize / 2;
-      outCount++;
-    }
+    positions[i * 2] = Math.round(positions[i * 2] / stepSize) * stepSize;
+    positions[i * 2 + 1] = Math.round(positions[i * 2 + 1] / stepSize) * stepSize;
   }
-
-  return { positions: out, count: outCount };
 }
 
 function computeDotInteractions(
@@ -314,13 +300,11 @@ function computeDotInteractions(
 
   if (gridA.count === 0 || gridB.count === 0) return [];
 
-  // PrePixelate: snap dots to tile grid and deduplicate within each grid.
-  // Multiple dots from the same grid that land in one tile become a single
-  // dot at the tile center. Then normal proximity runs between the deduped grids.
-  // This makes interactions pop on/off discretely as tiles align.
+  // PrePixelate: reduce position precision — dots snap to a coarser grid.
+  // Movement becomes steppy, interactions pop discretely.
   if (prePixelate > 1) {
-    gridA = quantizeAndDedup(gridA.positions, gridA.count, prePixelate);
-    gridB = quantizeAndDedup(gridB.positions, gridB.count, prePixelate);
+    decimatePositions(gridA.positions, gridA.count, prePixelate);
+    decimatePositions(gridB.positions, gridB.count, prePixelate);
   }
 
   if (!spatialHashRef.current || spatialHashRef.current.cellSize !== radius) {
@@ -472,9 +456,9 @@ function computeDotLineInteractions(
 
   if (dots.count === 0 || lines.count === 0) return [];
 
-  // Quantize dot positions if prePixelate is active
+  // Decimate dot position precision if prePixelate is active
   if (prePixelate > 1) {
-    dots = quantizeAndDedup(dots.positions, dots.count, prePixelate);
+    decimatePositions(dots.positions, dots.count, prePixelate);
   }
 
   const lineRad = (lineLayer.rotation * Math.PI) / 180;
