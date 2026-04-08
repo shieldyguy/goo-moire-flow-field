@@ -173,14 +173,10 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
       const tempCtx = tempCanvas.getContext('2d');
 
       if (tempCtx) {
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.drawImage(canvas, 0, 0);
 
-        // Reuse WebGLImageFilter — create once, reconfigure each frame
-        if (!filterRef.current) {
-          filterRef.current = new window.WebGLImageFilter();
-        }
-        const filter = filterRef.current;
-        filter.reset();
+        const filter = new window.WebGLImageFilter();
 
         filter.addFilter("pixelate", settings.goo.prePixelate);
         filter.addFilter("blur", settings.goo.blur);
