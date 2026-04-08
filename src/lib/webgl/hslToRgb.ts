@@ -1,8 +1,19 @@
 /**
- * Parse a CSS HSL string like "hsl(210, 50%, 45%)" into [r, g, b] floats in [0, 1].
+ * Parse a CSS color string (HSL or hex) into [r, g, b] floats in [0, 1].
  */
-export function parseHslToRgb(hsl: string): [number, number, number] {
-  const m = hsl.match(/hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
+export function parseHslToRgb(color: string): [number, number, number] {
+  // Hex format: #rrggbb
+  const hex = color.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (hex) {
+    return [
+      parseInt(hex[1], 16) / 255,
+      parseInt(hex[2], 16) / 255,
+      parseInt(hex[3], 16) / 255,
+    ];
+  }
+
+  // HSL format: hsl(H, S%, L%)
+  const m = color.match(/hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
   if (!m) return [1, 1, 1];
 
   const h = parseInt(m[1]) / 360;

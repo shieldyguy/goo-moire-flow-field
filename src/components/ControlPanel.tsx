@@ -708,17 +708,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             />
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <label className="text-sm text-zinc-200">
-                              Skip Voicing
-                            </label>
-                            <Switch
-                              checked={settings.audio?.skipVoicing ?? true}
-                              onCheckedChange={(checked) =>
-                                handleUpdateSetting("audio", "skipVoicing", checked)
-                              }
-                            />
-                          </div>
                         </>
                       )}
                     </div>

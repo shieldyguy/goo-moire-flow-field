@@ -35,7 +35,6 @@ interface AudioSettings {
   masterVolume: number;
   interactionRadius: number;
   frequencyRange: { min: number; max: number };
-  skipVoicing: boolean;
   rampTimeMs: number;
   maxVoices: number;
 }
@@ -101,7 +100,6 @@ const Index = () => {
       masterVolume: 0.3,
       interactionRadius: 0.1,
       frequencyRange: { min: 80, max: 800 },
-      skipVoicing: true,
       rampTimeMs: 25,
       maxVoices: 64,
     },
