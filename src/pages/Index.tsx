@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Canvas from "@/components/Canvas";
-import { decodePreset } from "@/lib/encoding/presetEncoder";
+import { decodePreset, MovementData } from "@/lib/encoding/presetEncoder";
 import { useToast } from "@/components/ui/use-toast";
 
 // Define types to match presetEncoder
@@ -105,6 +105,9 @@ const Index = () => {
     },
   });
 
+  // Movement state decoded from preset URL (offset + velocity)
+  const [initialMovement, setInitialMovement] = useState<MovementData | undefined>();
+
   // Handle URL parameters on load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -112,7 +115,8 @@ const Index = () => {
 
     if (preset) {
       try {
-        const decodedSettings = decodePreset(preset);
+        const decoded = decodePreset(preset);
+        const decodedSettings = decoded.settings;
         // Ensure we have touch settings, even if preset doesn't include them
         const finalSettings = {
           ...decodedSettings,
@@ -150,10 +154,11 @@ const Index = () => {
         }
 
         setSettings(finalSettings);
-        /*toast({
-          title: "Preset Loaded",
-          description: "Successfully loaded preset from URL",
-        });*/
+
+        // Restore movement state if present in the preset
+        if (decoded.movement) {
+          setInitialMovement(decoded.movement);
+        }
       } catch (error) {
         console.error("Failed to load preset:", error);
         toast({
@@ -167,7 +172,7 @@ const Index = () => {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-zinc-950">
-      <Canvas settings={settings} setSettings={setSettings} />
+      <Canvas settings={settings} setSettings={setSettings} initialMovement={initialMovement} />
     </div>
   );
 };

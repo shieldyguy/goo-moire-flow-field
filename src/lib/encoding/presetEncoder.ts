@@ -1,5 +1,5 @@
-// V4 binary format: 41 bytes total (v3 was 31)
-// Byte 0:     version (4)
+// V5 binary format: 49 bytes total (v4 was 41)
+// Byte 0:     version (5)
 // Bytes 1-12: Layer 1
 //   1-2: spacing*100 (uint16)  3-4: size*100 (uint16)  5-6: rotation*10 (uint16)
 //   7: R  8: G  9: B  10: type  11: numShapes  12: strokeWidth*10
@@ -13,6 +13,11 @@
 //   36-37: frequencyRange.min (uint16)
 //   38-39: frequencyRange.max (uint16)
 //   40: rampTimeMs (uint8)
+// Bytes 41-48: Movement (v5)
+//   41-42: offsetX (int16, wraps modular)
+//   43-44: offsetY (int16)
+//   45-46: velocityX * 10 (int16, px/sec)
+//   47-48: velocityY * 10 (int16)
 
 const TYPE_TO_ID: Record<string, number> = { dots: 0, lines: 1, squares: 2 };
 const ID_TO_TYPE = ["dots", "lines", "squares"] as const;
@@ -49,6 +54,13 @@ interface AudioSettings {
   maxVoices: number;
 }
 
+export interface MovementData {
+  offsetX: number;
+  offsetY: number;
+  velocityX: number;
+  velocityY: number;
+}
+
 interface PresetData {
   version?: number;
   settings: {
@@ -58,6 +70,7 @@ interface PresetData {
     touch?: TouchSettings;
     audio?: AudioSettings;
   };
+  movement?: MovementData;
 }
 
 const DEFAULT_SETTINGS: PresetData["settings"] = {
@@ -182,12 +195,15 @@ function fromUrlBase64(encoded: string): string {
   return atob(base64);
 }
 
-// Main encoding function - binary pack into 41 bytes (v4)
-export const encodePreset = (settings: PresetData["settings"]): string => {
-  const buf = new Uint8Array(41);
+// Main encoding function - binary pack into 49 bytes (v5)
+export const encodePreset = (
+  settings: PresetData["settings"],
+  movement?: MovementData,
+): string => {
+  const buf = new Uint8Array(49);
   const view = new DataView(buf.buffer);
 
-  buf[0] = 4; // version
+  buf[0] = 5; // version
 
   encodeLayer(view, buf, 1, settings.layer1);
   encodeLayer(view, buf, 13, settings.layer2);
@@ -212,6 +228,14 @@ export const encodePreset = (settings: PresetData["settings"]): string => {
   view.setUint16(36, Math.round(audio.frequencyRange.min));
   view.setUint16(38, Math.round(audio.frequencyRange.max));
   buf[40] = Math.round(audio.rampTimeMs);
+
+  // Movement (v5)
+  if (movement) {
+    view.setInt16(41, Math.round(movement.offsetX));
+    view.setInt16(43, Math.round(movement.offsetY));
+    view.setInt16(45, Math.round(movement.velocityX * 10));
+    view.setInt16(47, Math.round(movement.velocityY * 10));
+  }
 
   return toUrlBase64(buf);
 };
@@ -279,28 +303,58 @@ function decodeV4(binary: string): PresetData["settings"] {
   };
 }
 
-// Main decoding function - handles v0-v2 JSON, v3 and v4 binary
-export const decodePreset = (encoded: string): PresetData["settings"] => {
+// Decode v5 binary format (v4 + movement)
+function decodeV5(binary: string): { settings: PresetData["settings"]; movement: MovementData } {
+  const settings = decodeV4(binary);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buf[i] = binary.charCodeAt(i);
+  }
+  const view = new DataView(buf.buffer);
+
+  return {
+    settings,
+    movement: {
+      offsetX: view.getInt16(41),
+      offsetY: view.getInt16(43),
+      velocityX: view.getInt16(45) / 10,
+      velocityY: view.getInt16(47) / 10,
+    },
+  };
+}
+
+export interface DecodedPreset {
+  settings: PresetData["settings"];
+  movement?: MovementData;
+}
+
+// Main decoding function - handles v0-v2 JSON, v3, v4, and v5 binary
+export const decodePreset = (encoded: string): DecodedPreset => {
   try {
     const binary = fromUrlBase64(encoded);
 
+    // v5 binary
+    if (binary.charCodeAt(0) === 5) {
+      return decodeV5(binary);
+    }
+
     // v4 binary
     if (binary.charCodeAt(0) === 4) {
-      return decodeV4(binary);
+      return { settings: decodeV4(binary) };
     }
 
     // v3 binary: first byte is 3 (not '{' which is 123)
     if (binary.charCodeAt(0) === 3) {
-      return mergeWithDefaults(decodeV3(binary));
+      return { settings: mergeWithDefaults(decodeV3(binary)) };
     }
 
     // v0-v2: JSON-based
     const data = JSON.parse(binary) as PresetData;
 
     if (data.version === undefined) {
-      return mergeWithDefaults(data as any);
+      return { settings: mergeWithDefaults(data as any) };
     } else if (data.version === 1 || data.version === 2) {
-      return mergeWithDefaults(data.settings);
+      return { settings: mergeWithDefaults(data.settings) };
     } else {
       throw new Error("Unsupported preset version");
     }

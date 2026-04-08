@@ -300,10 +300,11 @@ function computeDotInteractions(
 
   if (gridA.count === 0 || gridB.count === 0) return [];
 
-  // PrePixelate: reduce position precision — dots snap to a coarser grid.
-  // Movement becomes steppy, interactions pop discretely.
+  // PrePixelate: reduce position precision for layer 2 only — dots snap to a
+  // coarser grid.  Quantizing only the moving layer keeps the choppy/steppy
+  // feel without artificially increasing proximity density (which happens when
+  // both layers snap to the same coarse grid).
   if (prePixelate > 1) {
-    decimatePositions(gridA.positions, gridA.count, prePixelate);
     decimatePositions(gridB.positions, gridB.count, prePixelate);
   }
 
