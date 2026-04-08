@@ -549,8 +549,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
                                 {(
-                                  settings.audio?.interactionRadius ?? 1
-                                ).toFixed(2)}
+                                  settings.audio?.interactionRadius ?? 0.1
+                                ).toFixed(3)}
                                 x
                               </span>
                             </div>
@@ -558,9 +558,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               value={[
                                 settings.audio?.interactionRadius ?? 1,
                               ]}
-                              min={0.01}
-                              max={2}
-                              step={0.01}
+                              min={0.005}
+                              max={0.3}
+                              step={0.005}
                               onValueChange={(value) =>
                                 handleUpdateSetting(
                                   "audio",

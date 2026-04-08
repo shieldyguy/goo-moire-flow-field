@@ -98,7 +98,7 @@ const Index = () => {
     audio: {
       enabled: false,
       masterVolume: 0.3,
-      interactionRadius: 1,
+      interactionRadius: 0.1,
       frequencyRange: { min: 80, max: 800 },
       rampTimeMs: 25,
       maxVoices: 128,
@@ -125,7 +125,7 @@ const Index = () => {
           audio: {
             enabled: false,
             masterVolume: 0.3,
-            interactionRadius: 1,
+            interactionRadius: 0.1,
             frequencyRange: { min: 80, max: 800 },
             rampTimeMs: 25,
             maxVoices: 128,
