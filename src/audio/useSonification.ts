@@ -213,7 +213,17 @@ export function useSonification(
       targets.set(t.key, { gain: t.gain, freq: t.freq });
     }
 
-    engine.updateVoices(targets, audioSettings);
+    // Scale ramp time with pre-pixelate: chunky quantization → snappy gains.
+    // At prePixelate=1, use the configured ramp. At high values, nearly instant.
+    const effectiveRampMs =
+      prePixelate > 1
+        ? Math.max(3, audioSettings.rampTimeMs / prePixelate)
+        : audioSettings.rampTimeMs;
+
+    engine.updateVoices(targets, {
+      ...audioSettings,
+      rampTimeMs: effectiveRampMs,
+    });
   }, [
     audioSettings,
     layer1.spacing,

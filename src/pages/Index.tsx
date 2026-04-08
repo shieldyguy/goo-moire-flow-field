@@ -100,7 +100,7 @@ const Index = () => {
       masterVolume: 0.3,
       interactionRadius: 1,
       frequencyRange: { min: 80, max: 800 },
-      rampTimeMs: 40,
+      rampTimeMs: 15,
       maxVoices: 128,
     },
   });
@@ -127,7 +127,7 @@ const Index = () => {
             masterVolume: 0.3,
             interactionRadius: 1,
             frequencyRange: { min: 80, max: 800 },
-            rampTimeMs: 40,
+            rampTimeMs: 15,
             maxVoices: 128,
           },
         } as AppSettings;
