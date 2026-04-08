@@ -52,7 +52,7 @@ export class AudioEngine {
 
       // Normalization gain sits between voices and master
       this.normGain = this.ctx.createGain();
-      this.normGain.gain.value = 1;
+      this.normGain.gain.value = 0.01; // Start quiet, ramps up on first frame
       this.normGain.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
     }
