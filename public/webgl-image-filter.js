@@ -82,7 +82,7 @@ var WebGLImageFilter = window.WebGLImageFilter = function (params) {
 	// key is the shader program source, value is the compiled program
 	var _shaderProgramCache = { };
 
-	var gl = _canvas.getContext("webgl") || _canvas.getContext("experimental-webgl");
+	var gl = _canvas.getContext("webgl", { preserveDrawingBuffer: true }) || _canvas.getContext("experimental-webgl", { preserveDrawingBuffer: true });
 	if( !gl ) {
 		throw "Couldn't get WebGL context";
 	}

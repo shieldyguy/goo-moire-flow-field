@@ -16,8 +16,8 @@ function buildOgHtml(imageUrl: string, presetParam: string): string {
   <meta property="og:title" content="Emergent Field Explorer" />
   <meta property="og:description" content="Emergent Field Explorer by Lunch." />
   <meta property="og:image" content="${imageUrl}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:width" content="600" />
+  <meta property="og:image:height" content="315" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Emergent Field Explorer — Lunch" />
   <meta name="twitter:description" content="Emergent Field Explorer by Lunch." />
