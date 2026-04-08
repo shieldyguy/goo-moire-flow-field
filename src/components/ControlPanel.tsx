@@ -16,6 +16,16 @@ import { cn } from "@/lib/utils";
 import { encodePreset, MovementData } from "@/lib/encoding/presetEncoder";
 import { uploadOgImage } from "@/lib/uploadOgImage";
 
+// ─── Music note helpers ───
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+const hzToMidi = (hz: number): number => Math.round(12 * Math.log2(hz / 440) + 69);
+const midiToHz = (midi: number): number => 440 * Math.pow(2, (midi - 69) / 12);
+const hzToNoteName = (hz: number): string => {
+  const midi = hzToMidi(hz);
+  return NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
+};
+
 // Function to generate random colors
 const generateRandomColor = () => {
   // Generate muted, stylish colors instead of fully saturated ones
@@ -603,71 +613,74 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <div>
                             <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">
-                                Freq Base
+                                Base Note
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
-                                {settings.audio?.frequencyRange?.min ?? 80} Hz
+                                {hzToNoteName(settings.audio?.frequencyRange?.min ?? 80)}
                               </span>
                             </div>
                             <Slider
                               value={[
-                                settings.audio?.frequencyRange?.min ?? 80,
+                                hzToMidi(settings.audio?.frequencyRange?.min ?? 80),
                               ]}
-                              min={20}
-                              max={2000}
+                              min={24}
+                              max={96}
                               step={1}
-                              onValueChange={(value) =>
+                              onValueChange={(value) => {
+                                const newMin = midiToHz(value[0]);
+                                const oldSemitones = 12 * Math.log2(
+                                  (settings.audio?.frequencyRange?.max ?? 800) /
+                                  (settings.audio?.frequencyRange?.min ?? 80)
+                                );
                                 handleUpdateSetting(
                                   "audio",
                                   "frequencyRange",
                                   {
-                                    min: value[0],
-                                    max:
-                                      value[0] +
-                                      ((settings.audio?.frequencyRange?.max ??
-                                        800) -
-                                        (settings.audio?.frequencyRange?.min ??
-                                          80)),
+                                    min: newMin,
+                                    max: newMin * Math.pow(2, oldSemitones / 12),
                                   },
-                                )
-                              }
+                                );
+                              }}
                             />
                           </div>
 
                           <div>
                             <div className="flex justify-between">
                               <label className="text-sm text-zinc-200">
-                                Freq Range
+                                Range
                               </label>
                               <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
                                 {Math.round(
-                                  (settings.audio?.frequencyRange?.max ?? 800) -
-                                    (settings.audio?.frequencyRange?.min ?? 80),
-                                )}{" "}
-                                Hz
+                                  12 * Math.log2(
+                                    (settings.audio?.frequencyRange?.max ?? 800) /
+                                    (settings.audio?.frequencyRange?.min ?? 80)
+                                  )
+                                )} st
                               </span>
                             </div>
                             <Slider
                               value={[
-                                (settings.audio?.frequencyRange?.max ?? 800) -
-                                  (settings.audio?.frequencyRange?.min ?? 80),
+                                Math.round(
+                                  12 * Math.log2(
+                                    (settings.audio?.frequencyRange?.max ?? 800) /
+                                    (settings.audio?.frequencyRange?.min ?? 80)
+                                  )
+                                ),
                               ]}
                               min={1}
-                              max={4000}
+                              max={72}
                               step={1}
-                              onValueChange={(value) =>
+                              onValueChange={(value) => {
+                                const min = settings.audio?.frequencyRange?.min ?? 80;
                                 handleUpdateSetting(
                                   "audio",
                                   "frequencyRange",
                                   {
-                                    min:
-                                      settings.audio?.frequencyRange?.min ?? 80,
-                                    max:
-                                      (settings.audio?.frequencyRange?.min ??
-                                        80) + value[0],
+                                    min,
+                                    max: min * Math.pow(2, value[0] / 12),
                                   },
-                                )
-                              }
+                                );
+                              }}
                             />
                           </div>
                         </>
