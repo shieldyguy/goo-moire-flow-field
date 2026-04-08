@@ -119,11 +119,9 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     const tau = config.rampTimeMs / 1000;
 
-    // Normalize by 1/N so the sum of all voices never exceeds 1.0 before
-    // master gain. sqrt(N) is too weak — dense grids produce correlated
-    // sines at similar frequencies that sum nearly linearly.
-    const voiceCount = Math.max(targets.size, 1);
-    const normValue = 1 / voiceCount;
+    // Normalize against maxVoices so volume is consistent regardless
+    // of how many voices are actually active.
+    const normValue = 1 / Math.max(config.maxVoices, 1);
     this.normGain.gain.setTargetAtTime(normValue, now, tau);
 
     // Update or create voices for all active targets
