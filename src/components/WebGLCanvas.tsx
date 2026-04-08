@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from "react";
+import React, { useRef, useEffect, forwardRef } from "react";
 import { GridRenderer } from "@/lib/webgl/GridRenderer";
 
 interface WebGLCanvasProps {
@@ -56,11 +56,9 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
 
   // The currently displayed canvas (grid or filter output) — swapped into the DOM
   const displayCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Track which canvas is currently displayed as React state so
-  // useImperativeHandle re-exposes it when it changes.
-  const [activeCanvas, setActiveCanvas] = useState<HTMLCanvasElement | null>(null);
-  useImperativeHandle(ref, () => activeCanvas!, [activeCanvas]);
+  // Keep the forwarded ref in a local ref so we can update it directly from draw()
+  const forwardedRef = useRef(ref)
+  forwardedRef.current = ref;
 
   // Persistent WebGL filter — never recreated
   const filterRef = useRef<any>(null);
@@ -129,7 +127,10 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
       });
       container.appendChild(outputCanvas);
       displayCanvasRef.current = outputCanvas;
-      setActiveCanvas(outputCanvas);
+      // Update the forwarded ref so parent's getSnapshot() returns the live canvas
+      const fRef = forwardedRef.current;
+      if (typeof fRef === 'function') fRef(outputCanvas);
+      else if (fRef) (fRef as React.MutableRefObject<HTMLCanvasElement | null>).current = outputCanvas;
     }
   };
 
