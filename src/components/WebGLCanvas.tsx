@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import React, { useRef, useEffect, useImperativeHandle, forwardRef, useMemo } from "react";
 
 interface WebGLCanvasProps {
   width: number;
@@ -45,6 +45,10 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useImperativeHandle(ref, () => canvasRef.current!, []);
   const dpr = window.devicePixelRatio || 1;
+
+  // Persistent offscreen canvas and WebGL filter — never recreated
+  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const filterRef = useRef<any>(null);
 
   // Helper function to draw concentric squares
   const drawConcentricSquares = (
@@ -157,31 +161,38 @@ const WebGLCanvas = forwardRef<HTMLCanvasElement, WebGLCanvasProps>(({
 
     // Apply post-processing if enabled
     if (settings.goo.enabled) {
-      // Create a temp canvas for the filter process
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
+      // Reuse offscreen canvas — only create once, resize if needed
+      if (!tempCanvasRef.current) {
+        tempCanvasRef.current = document.createElement('canvas');
+      }
+      const tempCanvas = tempCanvasRef.current;
+      if (tempCanvas.width !== canvas.width || tempCanvas.height !== canvas.height) {
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+      }
       const tempCtx = tempCanvas.getContext('2d');
-      
+
       if (tempCtx) {
-        // Copy current canvas to temp
         tempCtx.drawImage(canvas, 0, 0);
-        
-        // Apply WebGL filter
-        const filter = new window.WebGLImageFilter();
+
+        // Reuse WebGLImageFilter — create once, reconfigure each frame
+        if (!filterRef.current) {
+          filterRef.current = new window.WebGLImageFilter();
+        }
+        const filter = filterRef.current;
+        filter.reset();
 
         filter.addFilter("pixelate", settings.goo.prePixelate);
-        filter.addFilter("blur", settings.goo.blur); 
-        filter.addFilter("blur", settings.goo.blur); 
-        filter.addFilter("blur", settings.goo.blur); 
         filter.addFilter("blur", settings.goo.blur);
-        const thresholdFactor = settings.goo.threshold / 128; // Normalize to 0-1 range     
+        filter.addFilter("blur", settings.goo.blur);
+        filter.addFilter("blur", settings.goo.blur);
+        filter.addFilter("blur", settings.goo.blur);
+        const thresholdFactor = settings.goo.threshold / 128;
         filter.addFilter("brightness", thresholdFactor);
         filter.addFilter("contrast", 20);
         filter.addFilter("polaroid");
         filter.addFilter("pixelate", settings.goo.postPixelate);
-        
-        // Apply the filter and draw back to original canvas
+
         const result = filter.apply(tempCanvas);
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(result, 0, 0);

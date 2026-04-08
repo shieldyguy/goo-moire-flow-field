@@ -111,6 +111,14 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  // Mirror state to refs so touch handlers (registered once) can read current values
+  const isDraggingRef = useRef(false);
+  isDraggingRef.current = isDragging;
+  const showMenuRef = useRef(false);
+  showMenuRef.current = showMenu;
+  const offsetRef = useRef({ x: 0, y: 0 });
+  offsetRef.current = offset;
   const dragStartRef = useRef({ x: 0, y: 0 });
   const lastClickTimeRef = useRef(0);
   const { toast } = useToast();
@@ -334,25 +342,22 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
     const interactionLayer = interactionLayerRef.current;
     if (!interactionLayer) return;
 
-    // These handlers will be able to use preventDefault() without warnings
+    // Read from refs (not closures) so these handlers never need re-registration
     const handleTouchStartEvent = (e: TouchEvent) => {
-      e.preventDefault(); // This works with {passive: false}
+      e.preventDefault();
 
-      if (e.touches.length > 1) {
-        return;
-      }
+      if (e.touches.length > 1) return;
 
       const touch = e.touches[0];
       const currentTime = new Date().getTime();
       const timeDiff = currentTime - lastClickTimeRef.current;
 
-      if (showMenu) {
+      if (showMenuRef.current) {
         setShowMenu(false);
         return;
       }
 
       if (timeDiff < 250 && timeDiff > 50) {
-        // Double-tap opens menu — don't stop drift
         setMenuPosition({ x: touch.clientX, y: touch.clientY });
         setShowMenu(true);
         return;
@@ -360,20 +365,18 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
       lastClickTimeRef.current = currentTime;
 
-      // Prepare for drag but don't stop drift yet — same lazy approach as mouse
       setIsDragging(true);
       dragStartRef.current = {
-        x: touch.clientX - offset.x,
-        y: touch.clientY - offset.y,
+        x: touch.clientX - offsetRef.current.x,
+        y: touch.clientY - offsetRef.current.y,
       };
     };
 
     const handleTouchMoveEvent = (e: TouchEvent) => {
       e.preventDefault();
 
-      if (!isDragging) return;
+      if (!isDraggingRef.current) return;
 
-      // Stop drift on first actual move
       if (!hasDragMovedRef.current) {
         stopDrift();
         hasDragMovedRef.current = true;
@@ -392,7 +395,7 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
 
     const handleTouchEndEvent = (e: TouchEvent) => {
       e.preventDefault();
-      if (isDragging && hasDragMovedRef.current) {
+      if (isDraggingRef.current && hasDragMovedRef.current) {
         const { vx, vy } = computeDriftVelocity();
         startDrift(vx, vy);
       }
@@ -400,7 +403,6 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       hasDragMovedRef.current = false;
     };
 
-    // Add event listeners with {passive: false} option
     interactionLayer.addEventListener("touchstart", handleTouchStartEvent, {
       passive: false,
     });
@@ -411,13 +413,13 @@ const Canvas: React.FC<CanvasProps> = ({ settings, setSettings }) => {
       passive: false,
     });
 
-    // Clean up
     return () => {
       interactionLayer.removeEventListener("touchstart", handleTouchStartEvent);
       interactionLayer.removeEventListener("touchmove", handleTouchMoveEvent);
       interactionLayer.removeEventListener("touchend", handleTouchEndEvent);
     };
-  }, [isDragging, offset, showMenu]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();

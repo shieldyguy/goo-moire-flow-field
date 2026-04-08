@@ -3,6 +3,7 @@ import { AudioEngine } from "./AudioEngine";
 import {
   extractDotPositions,
   extractLinePositions,
+  resetExtractorBuffers,
 } from "./dotPositionExtractor";
 import { SpatialHash } from "./spatialHash";
 
@@ -156,6 +157,9 @@ export function useSonification(
     const engine = engineRef.current;
     if (!engine || !engine.isReady || !audioSettings.enabled) return;
     if (canvasW === 0 || canvasH === 0) return;
+
+    // Reset buffer alternation so grid A/B get separate buffers
+    resetExtractorBuffers();
 
     // Base interaction radius from dot sizes
     let radius =

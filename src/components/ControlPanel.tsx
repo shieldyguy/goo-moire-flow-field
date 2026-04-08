@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSpring, animated, config } from "@react-spring/web";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -204,6 +204,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       },
     }));
   };
+
+  // Throttle color picker to ~10 FPS to avoid choking the render pipeline
+  const colorThrottleRef = useRef(0);
+  const handleColorChange = useCallback(
+    (section: string, value: string) => {
+      const now = Date.now();
+      if (now - colorThrottleRef.current < 100) return; // ~10 FPS
+      colorThrottleRef.current = now;
+      setSettings((prev: any) => ({
+        ...prev,
+        [section]: { ...prev[section], color: value },
+      }));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // Reset settings to defaults with random colors
   const resetSettings = () => {
@@ -797,9 +813,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             type="color"
                             value={settings[activeSection].color}
                             onChange={(e) =>
-                              handleUpdateSetting(
+                              handleColorChange(
                                 activeSection,
-                                "color",
                                 e.target.value,
                               )
                             }
