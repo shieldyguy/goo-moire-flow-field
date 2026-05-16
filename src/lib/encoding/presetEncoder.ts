@@ -1,5 +1,5 @@
-// V5 binary format: 49 bytes total (v4 was 41)
-// Byte 0:     version (5)
+// V6 binary format: 50 bytes total (v5 was 49)
+// Byte 0:     version (6)
 // Bytes 1-12: Layer 1
 //   1-2: spacing*100 (uint16)  3-4: size*100 (uint16)  5-6: rotation*10 (uint16)
 //   7: R  8: G  9: B  10: type  11: numShapes  12: strokeWidth*10
@@ -13,11 +13,12 @@
 //   36-37: frequencyRange.min (uint16)
 //   38-39: frequencyRange.max (uint16)
 //   40: rampTimeMs (uint8)
-// Bytes 41-48: Movement (v5)
+// Bytes 41-48: Movement
 //   41-42: offsetX (int16, wraps modular)
 //   43-44: offsetY (int16)
 //   45-46: velocityX * 10 (int16, px/sec)
 //   47-48: velocityY * 10 (int16)
+// Byte 49: posterizeLevels (uint8, v6+)
 
 const TYPE_TO_ID: Record<string, number> = { dots: 0, lines: 1, squares: 2 };
 const ID_TO_TYPE = ["dots", "lines", "squares"] as const;
@@ -38,6 +39,7 @@ interface GooSettings {
   threshold: number;
   prePixelate: number;
   postPixelate: number;
+  posterizeLevels?: number;
 }
 
 interface TouchSettings {
@@ -98,6 +100,7 @@ const DEFAULT_SETTINGS: PresetData["settings"] = {
     threshold: 41,
     prePixelate: 1,
     postPixelate: 1,
+    posterizeLevels: 4,
   },
   touch: {
     enablePinchZoom: true,
@@ -200,10 +203,10 @@ export const encodePreset = (
   settings: PresetData["settings"],
   movement?: MovementData,
 ): string => {
-  const buf = new Uint8Array(49);
+  const buf = new Uint8Array(50);
   const view = new DataView(buf.buffer);
 
-  buf[0] = 5; // version
+  buf[0] = 6; // version
 
   encodeLayer(view, buf, 1, settings.layer1);
   encodeLayer(view, buf, 13, settings.layer2);
@@ -236,6 +239,9 @@ export const encodePreset = (
     view.setInt16(45, Math.round(movement.velocityX * 10));
     view.setInt16(47, Math.round(movement.velocityY * 10));
   }
+
+  // Posterize levels (v6)
+  buf[49] = Math.round(settings.goo.posterizeLevels ?? 4);
 
   return toUrlBase64(buf);
 };
@@ -323,6 +329,26 @@ function decodeV5(binary: string): { settings: PresetData["settings"]; movement:
   };
 }
 
+// Decode v6 binary format (v5 + posterizeLevels)
+function decodeV6(binary: string): { settings: PresetData["settings"]; movement: MovementData } {
+  const decoded = decodeV5(binary);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buf[i] = binary.charCodeAt(i);
+  }
+
+  return {
+    settings: {
+      ...decoded.settings,
+      goo: {
+        ...decoded.settings.goo,
+        posterizeLevels: buf[49] || 4,
+      },
+    },
+    movement: decoded.movement,
+  };
+}
+
 export interface DecodedPreset {
   settings: PresetData["settings"];
   movement?: MovementData;
@@ -332,6 +358,11 @@ export interface DecodedPreset {
 export const decodePreset = (encoded: string): DecodedPreset => {
   try {
     const binary = fromUrlBase64(encoded);
+
+    // v6 binary
+    if (binary.charCodeAt(0) === 6) {
+      return decodeV6(binary);
+    }
 
     // v5 binary
     if (binary.charCodeAt(0) === 5) {

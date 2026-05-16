@@ -23,6 +23,7 @@ interface GooSettings {
   prePixelate: number;
   postPixelate: number;
   driftFriction: number;
+  posterizeLevels: number;
 }
 
 interface TouchSettings {
@@ -90,6 +91,7 @@ const Index = () => {
       prePixelate: 1,
       postPixelate: 1,
       driftFriction: 0,
+      posterizeLevels: 4,
     },
     touch: {
       enablePinchZoom: true,

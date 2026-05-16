@@ -343,6 +343,48 @@ var WebGLImageFilter = window.WebGLImageFilter = function (params) {
 		'}',
 	].join('\n');
 
+	// Goo / metaball threshold + per-channel posterize. Two independent
+	// pieces working together:
+	//   1. Alpha threshold on blurred ALPHA — gives the sharp OUTER
+	//      perimeter (the overall blob silhouette).
+	//   2. Per-channel posterize on UNPREMULTIPLIED color — quantizes each
+	//      channel to N discrete levels, restoring the hard-banded
+	//      "posterized" look of the old contrast(20) chain. With N=2 it's
+	//      pure binary per-channel (matches old crushing — 8 corner
+	//      colors). With N=3 you get 27 colors and dim purple between red
+	//      and blue instead of bright magenta. Higher N → more color
+	//      variety, less crushing.
+	//
+	// The transition between bands is also where emergent shapes appear:
+	// inside mixed regions (e.g., black dots blurring into red dots),
+	// unpre.r varies smoothly across space, and the posterize step turns
+	// that smooth ramp into hard-edged bands of solid color.
+	_filter.gooThreshold = function( mult, bias, levels ) {
+		var program = _compileShader(_filter.gooThreshold.SHADER);
+		gl.uniform1f(program.uniform.u_mult, mult);
+		gl.uniform1f(program.uniform.u_bias, bias);
+		gl.uniform1f(program.uniform.u_levels, levels);
+		_draw();
+	};
+
+	_filter.gooThreshold.SHADER = [
+		'precision highp float;',
+		'varying vec2 vUv;',
+		'uniform sampler2D texture;',
+		'uniform float u_mult;',
+		'uniform float u_bias;',
+		'uniform float u_levels;',
+
+		'void main(void) {',
+			'vec4 c = texture2D(texture, vUv);',
+			'vec3 unpre = c.a > 0.001 ? c.rgb / c.a : vec3(0.0);',
+			'float steps = max(u_levels - 1.0, 1.0);',
+			'vec3 posterized = floor(unpre * steps + 0.5) / steps;',
+			'float alpha_factor = clamp(c.a * u_mult - u_bias, 0.0, 1.0);',
+			'gl_FragColor = vec4(posterized * alpha_factor, alpha_factor);',
+		'}',
+	].join('\n');
+
 	_filter.brightness = function( brightness ) {
 		var b = (brightness || 0) + 1;
 		_filter.colorMatrix([

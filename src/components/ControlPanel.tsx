@@ -285,6 +285,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         prePixelate: 1,
         postPixelate: 1,
         driftFriction: 0,
+        posterizeLevels: 4,
       },
       touch: prev.touch,
       audio: prev.audio,
@@ -450,6 +451,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 handleUpdateSetting(
                                   "goo",
                                   "threshold",
+                                  value[0],
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <label className="text-sm text-zinc-200">
+                                Posterize Levels
+                              </label>
+                              <span className="text-xs bg-zinc-900/60 px-1.5 py-0.5 text-zinc-300 font-mono">
+                                {settings.goo.posterizeLevels ?? 4}
+                              </span>
+                            </div>
+                            <Slider
+                              value={[settings.goo.posterizeLevels ?? 4]}
+                              min={2}
+                              max={16}
+                              step={1}
+                              onValueChange={(value) =>
+                                handleUpdateSetting(
+                                  "goo",
+                                  "posterizeLevels",
                                   value[0],
                                 )
                               }

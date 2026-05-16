@@ -39,6 +39,7 @@ interface CanvasProps {
       prePixelate: number;
       postPixelate: number;
       driftFriction: number;
+      posterizeLevels: number;
     };
     touch?: {
       enablePinchZoom: boolean;
